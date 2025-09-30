@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}Round 1 - AI Hiring Agent{% endblock %}
+
+{% block extra_css %}
+<style>
+    .question-card {
+        margin-bottom: 2rem;
+        border-left: 4px solid #0d6efd;
+    }
+    .timer {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: #dc3545;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Round 1: Written Assessment</h2>
+            <div class="timer" id="timer">60:00</div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">{{ session.hiring_request.work_profile }}</h5>
+                <small>Difficulty: {{ session.hiring_request.difficulty_level|title }}</small>
+            </div>
+            <div class="card-body">
+                <form id="examForm">
+                    {% for question in questions %}
+                    <div class="card question-card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">Question {{ forloop.counter }}</h6>
+                            <p class="card-text">{{ question.question_text }}</p>
+                            
+                            {% if question.question_type == 'mcq' %}
+                                <div class="ms-3">
+                                    {% for option in question.options %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" 
+                                               name="question_{{ question.id }}" 
+                                               value="{{ forloop.counter0 }}" 
+                                               id="q{{ question.id }}_opt{{ forloop.counter0 }}">
+                                        <label class="form-check-label" for="q{{ question.id }}_opt{{ forloop.counter0 }}">
+                                            {{ option }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="form-group">
+                                    <textarea class="form-control" name="question_{{ question.id }}" 
+                                              rows="3" placeholder="Type your answer here..."></textarea>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                            <i class="fas fa-paper-plane"></i> Submit Answers
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('examForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+        
+        // Collect answers
+        const answers = {};
+        const formData = new FormData(this);
+        
+        for (let [key, value] of formData.entries()) {
+        // Extract numeric ID from "question_6" -> 6
+        if (key.startsWith('question_')) {
+            const questionId = key.replace('question_', '');
+            answers[questionId] = value;
+        }
+    }
+        
+        try {
+        const response = await fetch(`/candidate/{{ session.token }}/round1/submit/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ answers: answers })
+        });
+        
+        const result = await response.json();
+            
+            if (result.success) {
+            if (result.passed) {
+                window.location.href = `/candidate/{{ session.token }}/round2/`;
+            } else {
+                window.location.href = `/candidate/{{ session.token }}/results/`;
+            }
+        } else {
+            alert('Error submitting answers: ' + result.error);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Answers';
+        }
+        } catch (error) {
+        alert('Error submitting answers: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Answers';
+    }
+});
+    
+    // Timer functionality (optional)
+    let timeLeft = 3600; // 60 minutes in seconds
+    const timerElement = document.getElementById('timer');
+    
+    const timer = setInterval(() => {
+        timeLeft--;
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            document.getElementById('examForm').dispatchEvent(new Event('submit'));
+        }
+    }, 1000);
+</script>
+{% endblock %}

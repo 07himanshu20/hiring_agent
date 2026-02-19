@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {% extends 'base.html' %}
 
 {% block title %}Assessment Results - AI Hiring Agent{% endblock %}
@@ -95,4 +96,126 @@
         </div>
     </div>
 </div>
+=======
+{% extends 'base.html' %}
+
+{% block title %}Assessment Results - AI Hiring Agent{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header {% if evaluation.is_shortlisted %}bg-success{% else %}bg-warning{% endif %} text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-{% if evaluation.is_shortlisted %}trophy{% else %}chart-bar{% endif %}"></i>
+                    Assessment Results
+                </h4>
+            </div>
+            <div class="card-body text-center">
+                {% if evaluation.is_shortlisted %}
+                <div class="alert alert-success">
+                    <h2>Congratulations! 🎉</h2>
+                    <p class="lead">You have been shortlisted for the next round!</p>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <h2>Thank You for Participating</h2>
+                    <p class="lead">We appreciate your time and effort in completing the assessment.</p>
+                </div>
+                {% endif %}
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Round 1: Written Assessment</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if evaluation.round1_score is not None %}
+                                    <div class="display-4 {% if evaluation.round1_score >= 60 %}text-success{% else %}text-warning{% endif %}">
+                                        {{ evaluation.round1_score|floatformat:1 }}%
+                                    </div>
+                                    <p class="mt-2">
+                                        {% if evaluation.round1_score >= 60 %}
+                                            <span class="badge bg-success">Passed</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Below Threshold</span>
+                                        {% endif %}
+                                    </p>
+                                {% else %}
+                                    <p class="text-muted">Not completed</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Round 2: Voice Interview</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if evaluation.round2_score is not None %}
+                                    <div class="display-4 {% if evaluation.round2_score >= 60 %}text-success{% else %}text-warning{% endif %}">
+                                        {{ evaluation.round2_score|floatformat:1 }}%
+                                    </div>
+                                    <p class="mt-2">
+                                        {% if evaluation.round2_score >= 60 %}
+                                            <span class="badge bg-success">Passed</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Below Threshold</span>
+                                        {% endif %}
+                                    </p>
+                                {% else %}
+                                    <p class="text-muted">Not completed</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if evaluation.overall_score is not None %}
+                <div class="mt-4">
+                    <h3>Overall Score: {{ evaluation.overall_score|floatformat:1 }}%</h3>
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar {% if evaluation.is_shortlisted %}bg-success{% else %}bg-danger{% endif %}" 
+                             style="width: {{ evaluation.overall_score }}%">
+                            {{ evaluation.overall_score|floatformat:1 }}%
+                        </div>
+                    </div>
+                    <p class="mt-2">
+                        {% if evaluation.is_shortlisted %}
+                            <span class="badge bg-success">Shortlisted</span>
+                        {% else %}
+                            <span class="badge bg-danger">Not Shortlisted</span>
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+                
+                {% if evaluation.evaluation_notes %}
+                <div class="mt-4">
+                    <h5>Feedback:</h5>
+                    <div class="alert alert-info">
+                        {{ evaluation.evaluation_notes }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <p class="text-muted">
+                        Assessment for: <strong>{{ session.hiring_request.work_profile }}</strong><br>
+                        Difficulty: <strong>{{ session.hiring_request.difficulty_level|title }}</strong><br>
+                        Completed on: <strong>{{ evaluation.created_at|date:"F j, Y H:i" }}</strong>
+                    </p>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="/" class="btn btn-primary">Return to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+>>>>>>> 45714fc9bb77db1a37f345b9f3c925e550b03dcb
 {% endblock %}

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 version: '3.8'
 
 services:
@@ -24,4 +25,32 @@ services:
       - "6379:6379"
 
 volumes:
+=======
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn hiring_agent.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - .:/app
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///db.sqlite3
+      - DJANGO_SECRET_KEY=development-secret-key-change-in-production
+    env_file:
+      - .env
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+>>>>>>> 45714fc9bb77db1a37f345b9f3c925e550b03dcb
   media_volume:

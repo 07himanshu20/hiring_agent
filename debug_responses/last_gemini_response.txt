@@ -1,0 +1,86 @@
+```json
+{
+    "questions": [
+        {
+            "id": 1,
+            "question_text": "Which AWS service is used for serverless computing?",
+            "question_type": "mcq",
+            "options": ["EC2", "S3", "Lambda", "RDS"],
+            "correct_answer": 2,
+            "model_answer": "Lambda allows you to run code without provisioning or managing servers."
+        },
+        {
+            "id": 2,
+            "question_text": "What is the primary function of AWS S3?",
+            "question_type": "mcq",
+            "options": ["Compute", "Database", "Storage", "Networking"],
+            "correct_answer": 2,
+            "model_answer": "S3 is an object storage service offering scalability, data availability, security, and performance."
+        },
+        {
+            "id": 3,
+            "question_text": "Which of the following is a valid way to define a function in Python?",
+            "question_type": "mcq",
+            "options": ["function my_function():", "def my_function():", "my_function def():", "define my_function():"],
+            "correct_answer": 1,
+            "model_answer": "In Python, functions are defined using the 'def' keyword."
+        },
+        {
+            "id": 4,
+            "question_text": "What does the acronym IAM stand for in AWS?",
+            "question_type": "mcq",
+            "options": ["Identity Access Management", "Internet Access Management", "Infrastructure Access Management", "Internal Access Management"],
+            "correct_answer": 0,
+            "model_answer": "IAM stands for Identity Access Management, which controls access to AWS resources."
+        },
+        {
+            "id": 5,
+            "question_text": "What is the purpose of a 'for' loop in Python?",
+            "question_type": "short_answer",
+            "options": [],
+            "correct_answer": null,
+            "model_answer": "A 'for' loop in Python is used to iterate over a sequence (like a list, tuple, string) or other iterable object."
+        },
+        {
+            "id": 6,
+            "question_text": "Which AWS service provides a virtual firewall for your EC2 instances?",
+            "question_type": "mcq",
+            "options": ["IAM", "VPC Security Groups", "CloudWatch", "CloudTrail"],
+            "correct_answer": 1,
+            "model_answer": "VPC Security Groups act as a virtual firewall to control inbound and outbound traffic for your EC2 instances."
+        },
+        {
+            "id": 7,
+            "question_text": "What is the output of the following Python code? `print(2 + 2 * 2)`",
+            "question_type": "mcq",
+            "options": ["4", "6", "8", "10"],
+            "correct_answer": 1,
+            "model_answer": "The output is 6.  Multiplication is performed before addition due to operator precedence (2 * 2 = 4, then 2 + 4 = 6)."
+        },
+        {
+            "id": 8,
+            "question_text": "Explain the difference between '==' and 'is' in Python.",
+            "question_type": "short_answer",
+            "options": [],
+            "correct_answer": null,
+            "model_answer": "'==' checks for equality of value, while 'is' checks for identity (whether two variables refer to the same object in memory)."
+        },
+        {
+            "id": 9,
+            "question_text": "What is the purpose of AWS CloudWatch?",
+            "question_type": "short_answer",
+            "options": [],
+            "correct_answer": null,
+            "model_answer": "AWS CloudWatch is a monitoring and observability service. It collects and tracks metrics, collects and monitors log files, and sets alarms."
+        },
+        {
+            "id": 10,
+            "question_text": "What is the command to print 'Hello, World!' in Python?",
+            "question_type": "short_answer",
+            "options": [],
+            "correct_answer": null,
+            "model_answer": "print('Hello, World!')"
+        }
+    ]
+}
+```

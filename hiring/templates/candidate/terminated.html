@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container text-center mt-5">
+  <h2 class="text-danger">❌ Test Terminated</h2>
+  <p>Your test session has been terminated.</p>
+  <p class="text-muted">Reason: {{ request.GET.reason|default:"Proctoring Violation" }}</p>
+  
+  {% if request.GET.token %}
+  <div class="mt-4">
+    <p>Session Token: <code>{{ request.GET.token }}</code></p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

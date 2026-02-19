@@ -1,0 +1,1534 @@
+{% extends 'base.html' %}
+
+{% block title %}Round 1 - AI Hiring Agent{% endblock %}
+
+{% block extra_css %}
+<style>
+    .question-card {
+        margin-bottom: 2rem;
+        border-left: 4px solid #0d6efd;
+    }
+
+    .timer {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: #dc3545;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+
+    .warning-alert {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        display: none;
+    }
+
+    .proctoring-alert {
+        position: fixed;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        display: none;
+    }
+
+    .warning-counter {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #ff4444;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 50%;
+        font-weight: bold;
+        z-index: 10000;
+        display: none;
+    }
+
+    #cameraPreview {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 200px;
+        height: 150px;
+        border: 2px solid #0d6efd;
+        border-radius: 8px;
+        background: #000;
+        z-index: 1000;
+        cursor: move;
+        resize: both;
+        overflow: auto;
+    }
+
+    .fullscreen-warning {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        font-size: 24px;
+        text-align: center;
+    }
+
+    .violation-counter {
+        position: fixed;
+        top: 120px;
+        right: 20px;
+        background: #ffc107;
+        color: black;
+        padding: 8px 12px;
+        border-radius: 5px;
+        font-weight: bold;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Fullscreen Warning -->
+<div class="fullscreen-warning" id="fullscreenWarning">
+    <div>
+        <h2>⚠️ Warning: Fullscreen Required</h2>
+        <p>Please return to fullscreen mode to continue your test.</p>
+        <p>You have <span id="fullscreenCountdown">10</span> seconds to comply.</p>
+    </div>
+</div>
+
+<!-- Violation Counter -->
+<div class="violation-counter" id="violationCounter">
+    ⚠️ Warnings: <span id="warningCount">0</span>/3
+</div>
+
+<!-- Warning Counter Display -->
+<div id="warning-counter" class="warning-counter">0</div>
+
+<!-- Proctoring Warning Alert -->
+<div class="alert alert-danger proctoring-alert" id="proctoringAlert">
+    <strong>⚠️ Proctoring Violation:</strong> <span id="violationMessage"></span>
+    <br><strong>Warnings:</strong> <span id="proctoringWarningCount">0</span>/3
+</div>
+
+<div class="alert alert-warning warning-alert" id="warningAlert">
+    <strong>⚠️ Warning:</strong> <span id="warningMessage"></span>
+    <br><strong>Total Warnings:</strong> <span id="totalWarningCount">0</span>/3
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Round 1: Written Assessment</h2>
+            <div class="timer" id="timer">60:00</div>
+        </div>
+
+        <!-- Dynamic Timer Container -->
+        <div class="timer-container"
+            style="position: fixed; top: 10px; left: 10px; background: #333; color: white; padding: 10px; border-radius: 5px; z-index: 9999;">
+            <div style="font-size: 24px; font-weight: bold; text-align: center;" id="round1-timer">--:--</div>
+            <div style="font-size: 12px; text-align: center;" id="timer-progress">Calculating...</div>
+        </div>
+
+        <!-- Enhanced Camera Preview -->
+        <div id="cameraPreview">
+            <video id="webcamVideo" autoplay muted playsinline
+                style="width: 100%; height: 100%; object-fit: cover;"></video>
+            <div
+                style="position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">
+                Live Camera
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">{{ session.hiring_request.work_profile }}</h5>
+                <small>Difficulty: {{ session.hiring_request.difficulty_level|title }}</small>
+            </div>
+            <div class="card-body">
+                <form id="examForm">
+                    {% for question in questions %}
+                    <div class="card question-card mb-3 question-container" data-question-id="{{ question.id }}">
+                        <div class="card-body">
+                            <h6 class="card-title">Question {{ forloop.counter }}</h6>
+                            <p class="card-text">{{ question.question_text }}</p>
+
+                            {% if question.question_type == 'mcq' %}
+                            <div class="ms-3">
+                                {% for option in question.options %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="question_{{ question.id }}"
+                                        value="{{ forloop.counter0 }}"
+                                        id="q{{ question.id }}_opt{{ forloop.counter0 }}">
+                                    <label class="form-check-label" for="q{{ question.id }}_opt{{ forloop.counter0 }}">
+                                        {{ option }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="form-group">
+                                <textarea class="form-control" name="question_{{ question.id }}" rows="3"
+                                    placeholder="Type your answer here..."></textarea>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                            <i class="fas fa-paper-plane"></i> Submit Answers
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+<script>
+    // ====================================================================
+    // CRITICAL: Define missing global variables
+    // ====================================================================
+    const sessionToken = "{{ session.token }}"; // FIX: Added missing sessionToken
+
+    function getCsrfToken() {
+        // Method 1: Try to get from hidden input
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput && csrfInput.value) {
+            console.log('Got CSRF from input');
+            return csrfInput.value;
+        }
+
+        // Method 2: Try meta tag
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        if (metaToken && metaToken.content) {
+            console.log('Got CSRF from meta tag');
+            return metaToken.content;
+        }
+
+        // Method 3: Extract from cookies (Django default)
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith('csrftoken=')) {
+                const token = cookie.substring('csrftoken='.length, cookie.length);
+                console.log('Got CSRF from cookie');
+                return decodeURIComponent(token);
+            }
+        }
+
+        console.error('CSRF token not found anywhere!');
+        console.log('Available cookies:', document.cookie);
+        return '';
+    }
+
+
+
+    // ====================================================================
+    // Proctoring and violation tracking variables
+    // ====================================================================
+    let proctoringInterval;
+    let screenSharingCheckInterval = null;
+    let screenSharingReturnCheckInterval = null; // For aggressive checking after tab return
+    let stream = null;
+    let warningCount = 0;
+    let tabSwitchCount = 0;
+    let rightClickCount = 0;
+    const maxWarnings = 3;
+    let warningShown = false;
+    let fullscreenCountdown = 10;
+    let fullscreenTimer = null;
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    // Test cases 3 & 5: track continuous head turn and face absence (5 seconds)
+    let noFaceSince = null;      // timestamp when face first went missing
+    let headTurnSince = null;   // timestamp when extreme head turn first detected
+    const FACE_ABSENCE_MS = 5000;
+    const HEAD_TURN_MS = 5000; // ignore first 10 seconds
+    let proctoringStartedAt = Date.now();
+    let headTurnViolationActive = false;
+    let lastAlertedWarning = 0;
+    let lastAlertedWarningCount = 0;
+    let resizeViolationTriggered = false;
+    let visibilityViolationTriggered = false;
+    let blurViolationTriggered = false;
+    let shortcutViolationActive = false;
+    const PROCTORING_WARMUP_MS = 10000; // 10 seconds
+    const VIOLATION_GRACE_PERIOD_MS = 8000;  // Ignore tab/resize in first 8s (page load, DevTools)
+    const SCREEN_SHARING_WARMUP_MS = 15000; // 15 seconds warm-up before first screen sharing check
+    let pageLoadTime = 0;  // Set in setupEventListeners
+    let screenSharingMonitoringActive = false; // Prevent duplicate monitoring
+
+
+
+
+
+    // ====================================================================
+    // 1. BROWSER LOCKDOWN CLASS - Fixed and Enhanced
+    // ====================================================================
+    class BrowserLockdown {
+        constructor() {
+            this.isFullscreen = false;
+            this.attemptedEscape = false;
+            this.init();
+        }
+
+        init() {
+            this.enforceFullscreen();
+            this.detectScreenSharing();
+            this.preventNewTabs();
+            // detectAltTab/monitorVisibility removed - tab switch handled by setupEventListeners only
+            console.log('Browser lockdown initialized');
+        }
+
+        // Method 1: Fullscreen Enforcement
+        enforceFullscreen() {
+            const enterFullscreen = () => {
+                const elem = document.documentElement;
+
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen().catch(e => {
+                        console.warn('Fullscreen error:', e);
+                    });
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) {
+                    elem.msRequestFullscreen();
+                }
+            };
+
+            // Enter fullscreen immediately
+            enterFullscreen();
+
+            // Monitor fullscreen changes
+            document.addEventListener('fullscreenchange', () => {
+                this.isFullscreen = !!(document.fullscreenElement ||
+                    document.webkitFullscreenElement ||
+                    document.msFullscreenElement);
+
+                if (!this.isFullscreen) {
+                    console.log('Fullscreen exit detected');
+                    this.handleViolation('fullscreen_exit', 'Candidate exited fullscreen mode');
+                    enterFullscreen(); // Re-enter
+                }
+            });
+
+            // Block keyboard shortcuts
+            this.blockKeyboardShortcuts();
+        }
+
+        // Method 2: Screen Sharing Detection
+        detectScreenSharing() {
+            // Monitor for potential sharing indicators
+            setInterval(() => {
+                this.checkForSharingIndicators();
+            }, 5000);
+        }
+
+        checkForSharingIndicators() {
+            // Check for reduced visibility or other sharing indicators
+            if (document.visibilityState === 'hidden' && !document.hidden) {
+                console.log('Suspicious visibility state detected');
+                this.handleViolation('suspicious_visibility', 'Unusual browser visibility state');
+            }
+        }
+
+        // Method 3: Prevent New Tabs/Windows
+        preventNewTabs() {
+            // Block window.open
+            window.open = function () {
+                console.log('Window open blocked');
+                return null;
+            };
+
+            // Block target="_blank" links
+            document.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A' && e.target.target === '_blank') {
+                    e.preventDefault();
+                    console.log('New tab attempt blocked');
+                    this.handleViolation('new_tab_attempt', 'Attempted to open new tab');
+                }
+            });
+        }
+
+        // Method 4: Keyboard Shortcut Blocking
+        blockKeyboardShortcuts() {
+            const blockedCombos = [
+                { key: 't', ctrl: true }, // Ctrl+T - New tab
+                { key: 'n', ctrl: true }, // Ctrl+N - New window
+                { key: 'w', ctrl: true }, // Ctrl+W - Close tab
+                { key: 'tab', alt: true }, // Alt+Tab - Switch app
+            ];
+
+            document.addEventListener('keydown', (e) => {
+                blockedCombos.forEach(combo => {
+                    if ((combo.ctrl && e.ctrlKey) || (combo.alt && e.altKey)) {
+                        if (e.key.toLowerCase() === combo.key.toLowerCase()) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log(`Blocked shortcut: ${combo.ctrl ? 'Ctrl+' : ''}${combo.alt ? 'Alt+' : ''}${combo.key}`);
+                            this.handleViolation('keyboard_shortcut', `Blocked keyboard shortcut: ${combo.key}`);
+                        }
+                    }
+                });
+            });
+        }
+
+        // Method 5: Alt+Tab Detection (Application Switching)
+        detectAltTab() {
+            let focusTime = Date.now();
+
+            window.addEventListener('focus', () => {
+                const lostFocusTime = Date.now() - focusTime;
+                if (lostFocusTime > 1000) {
+                    console.log(`Application switch detected: away for ${lostFocusTime}ms`);
+                    this.handleViolation('app_switch', `Switched away from test for ${lostFocusTime}ms`);
+                }
+            });
+
+            window.addEventListener('blur', () => {
+                focusTime = Date.now();
+            });
+        }
+
+        // Method 6: Page Visibility Monitoring
+        monitorVisibility() {
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    console.log('Page became hidden - possible tab switch');
+                    this.handleViolation('tab_hidden', 'Test tab became hidden/backgrounded');
+                }
+            });
+        }
+
+        handleViolation(type, details) {
+            console.log(`Lockdown violation: ${type} - ${details}`);
+
+            // Send to proctoring system
+            handleProctoringViolation({
+                type: type,
+                details: details,
+                imageData: null
+            });
+        }
+
+        // Emergency fullscreen re-entry
+        reenterFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) elem.requestFullscreen();
+            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+        }
+    }
+
+    // ====================================================================
+    // 2. DYNAMIC TIMER CLASS - Fixed and Enhanced
+    // ====================================================================
+    class Round1Timer {
+        constructor(totalQuestions, timePerQuestion = 60) {
+            this.totalQuestions = totalQuestions;
+            this.timePerQuestion = timePerQuestion;
+            this.totalTime = totalQuestions * timePerQuestion;
+            this.timeLeft = this.totalTime;
+            this.timerInterval = null;
+            this.isRunning = false;
+
+            this.initializeTimer();
+        }
+
+        initializeTimer() {
+            // Try to load saved time from sessionStorage
+            const savedTime = sessionStorage.getItem(`round1_time_${sessionToken}`);
+            if (savedTime) {
+                this.timeLeft = parseInt(savedTime);
+                console.log(`Loaded saved time: ${this.timeLeft}s`);
+            } else {
+                this.timeLeft = this.totalTime;
+                this.saveTime();
+            }
+
+            this.updateDisplay();
+            this.start();
+        }
+
+        start() {
+            if (this.isRunning) return;
+
+            this.isRunning = true;
+            this.timerInterval = setInterval(() => {
+                this.timeLeft--;
+                this.saveTime();
+                this.updateDisplay();
+
+                if (this.timeLeft <= 0) {
+                    this.timeUp();
+                }
+            }, 1000);
+
+            console.log(`Timer started: ${this.totalTime}s total, ${this.totalQuestions} questions`);
+        }
+
+        updateDisplay() {
+            const minutes = Math.floor(this.timeLeft / 60);
+            const seconds = this.timeLeft % 60;
+            const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            // Update timer display
+            const timerElement = document.getElementById('round1-timer');
+            if (timerElement) {
+                timerElement.textContent = timeString;
+
+                // Color coding
+                if (this.timeLeft < 300) {
+                    timerElement.style.color = '#ff4444';
+                } else if (this.timeLeft < 600) {
+                    timerElement.style.color = '#ffaa00';
+                } else {
+                    timerElement.style.color = '#44ff44';
+                }
+            }
+
+            // Update progress text
+            const progressElement = document.getElementById('timer-progress');
+            if (progressElement) {
+                const percentage = ((this.totalTime - this.timeLeft) / this.totalTime * 100).toFixed(1);
+                progressElement.textContent = `${this.totalQuestions} questions - ${percentage}% completed`;
+            }
+        }
+
+        timeUp() {
+            clearInterval(this.timerInterval);
+            this.isRunning = false;
+
+            console.log('Time is up! Auto-submitting...');
+            alert('⏰ Time is up! Submitting your answers automatically...');
+
+            // Auto-submit the form
+            this.autoSubmit();
+        }
+
+        autoSubmit() {
+            // Collect all answers
+            const answers = {};
+            document.querySelectorAll('input[type="radio"]:checked, textarea').forEach(input => {
+                const name = input.getAttribute('name');
+                answers[name] = input.value || input.textContent;
+            });
+
+            // Submit via AJAX
+            fetch(`/candidate/${sessionToken}/round1/submit/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken(),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ answers: answers })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = data.redirect_url || `/candidate/${sessionToken}/results/`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Auto-submit error:', error);
+                    window.location.href = `/candidate/${sessionToken}/results/`;
+                });
+        }
+
+        saveTime() {
+            sessionStorage.setItem(`round1_time_${sessionToken}`, this.timeLeft.toString());
+        }
+
+        destroy() {
+            clearInterval(this.timerInterval);
+            this.isRunning = false;
+            sessionStorage.removeItem(`round1_time_${sessionToken}`);
+        }
+    }
+
+    // ====================================================================
+    // 3. WARNING COUNTER SYSTEM - Single source, immediate UI update
+    // ====================================================================
+    function updateWarningCounter(count) {
+        if (count === undefined || count === null) return;
+        const c = parseInt(count, 10);
+        if (c === warningCount) return;
+        warningCount = c;
+        console.log(`Updating warning counter to: ${c}`);
+
+        const counterElements = [
+            document.getElementById('warning-counter'),
+            document.getElementById('warningCount'),
+            document.getElementById('proctoringWarningCount'),
+            document.getElementById('totalWarningCount')
+        ];
+        counterElements.forEach(el => {
+            if (el) {
+                el.textContent = c;
+                if (el.id === 'warning-counter') {
+                    el.style.display = c > 0 ? 'inline' : 'none';
+                }
+            }
+        });
+
+        if ((c === 1 || c === 2) && c > lastAlertedWarningCount) {
+            lastAlertedWarningCount = c;
+            showWarningAlert(c);
+        }
+    }
+
+
+
+    function showWarningAlert(count) {
+        const messages = {
+            1: "⚠️ First Warning: Malpractice detected. This is your first warning.",
+            2: "🚨 Second Warning: Further malpractice detected. One more violation will terminate your test."
+        };
+
+        if (messages[count]) {
+            alert(messages[count]);
+            console.log(`Warning alert shown: ${messages[count]}`);
+        }
+    }
+
+    function createNonBlockingAlert(message) {
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+    `;
+
+        // Create alert box
+        const alertBox = document.createElement('div');
+        alertBox.style.cssText = `
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    `;
+
+        alertBox.innerHTML = `
+        <p style="margin-bottom: 20px; font-size: 16px; color: #333;">${message}</p>
+        <button id="custom-alert-ok" style="
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        ">OK</button>
+    `;
+
+        overlay.appendChild(alertBox);
+        document.body.appendChild(overlay);
+
+        // Handle OK button click
+        document.getElementById('custom-alert-ok').onclick = function () {
+            document.body.removeChild(overlay);
+            window.alertActive = false;
+        };
+
+        // Auto-remove after 10 seconds (safety)
+        setTimeout(() => {
+            if (document.body.contains(overlay)) {
+                document.body.removeChild(overlay);
+                window.alertActive = false;
+            }
+        }, 10000);
+    }
+
+    // ====================================================================
+    // 4. BROWSER VIOLATION - Uses record-violation API (no camera needed)
+    // Updates warning counter immediately from backend response
+    // ====================================================================
+    function recordBrowserViolation(type, details) {
+        fetch(`/api/proctoring/${sessionToken}/record-violation/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify({ violation_type: type, details: details || type })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const c = data.current_warning_count ?? data.total_warnings;
+                    if (c !== undefined) updateWarningCounter(c);
+                    if (data.is_terminated && data.redirect_url) {
+                        handleTestTermination(data.redirect_url);
+                    }
+                }
+            })
+            .catch(e => console.error('Record violation error:', e));
+    }
+
+    function handleProctoringViolation(violationData) {
+        if (!violationData.imageData) {
+            recordBrowserViolation(violationData.type, violationData.details);
+            return;
+        }
+        console.log('Violation with image:', violationData.type);
+        fetch(`/api/proctoring/${sessionToken}/process-frame/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify({
+                image_data: violationData.imageData,
+                violation_type: violationData.type,
+                violation_details: violationData.details
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const c = data.current_warning_count ?? data.total_warnings;
+                    if (c !== undefined) updateWarningCounter(c);
+                    if (data.is_terminated && data.redirect_url) handleTestTermination(data.redirect_url);
+                }
+            })
+            .catch(e => console.error('Proctoring error:', e));
+    }
+
+    function handleTestTermination(redirectUrl) {
+        stopProctoring();
+        alert('❌ Your test has been terminated due to proctoring violations.');
+        window.location.href = redirectUrl || `/terminated/?token=${sessionToken}`;
+    }
+
+    function terminateTestWithReason(reason) {
+        stopProctoring();
+        fetch("/api/terminate-test/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrfToken() },
+            body: JSON.stringify({ token: sessionToken, reason: reason })
+        })
+            .then(response => response.json())
+            .then(data => {
+                alert('❌ Your test has been terminated: ' + reason);
+                window.location.href = data.redirect_url || `/terminated/?token=${sessionToken}`;
+            })
+            .catch(() => {
+                alert('❌ Your test has been terminated: ' + reason);
+                window.location.href = `/terminated/?token=${sessionToken}`;
+            });
+    }
+
+    // ====================================================================
+    // 5. TAB-SPECIFIC RIGHT-CLICK DETECTION - Fixed Implementation
+    // ====================================================================
+    function setupTabSpecificViolationDetection() {
+        // Round tab elements
+        const roundTabSelectors = [
+            '.round-tab',
+            '.test-tab',
+            '.question-nav',
+            '.tab-header',
+            '#round1-tab',
+            '#round2-tab',
+            '.nav-tabs',
+            '.tab-content',
+            '.card-header',
+            '.timer-container'
+        ];
+
+        roundTabSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(element => {
+                element.addEventListener('contextmenu', function (e) {
+                    e.preventDefault();
+                    console.log('Right-click detected on tab element:', selector);
+
+                    handleProctoringViolation({
+                        type: 'tab_right_click',
+                        details: 'Right-click detected on test navigation tabs',
+                        imageData: null
+                    });
+
+                    return false;
+                });
+            });
+        });
+
+        // General right-click detection for question content
+        document.addEventListener('contextmenu', function (e) {
+            // Check if click was on a tab element (already handled above)
+            const isTabElement = e.target.closest('.round-tab, .test-tab, .question-nav, .tab-header, .nav-tabs, .card-header, .timer-container');
+
+            if (!isTabElement) {
+                e.preventDefault();
+                console.log('Right-click detected on question content');
+
+                handleProctoringViolation({
+                    type: 'right_click',
+                    details: 'Right-click detected on test content',
+                    imageData: null
+                });
+
+                return false;
+            }
+        });
+    }
+
+    // ====================================================================
+    // 6. CAMERA AND PROCTORING FUNCTIONS
+    // ====================================================================
+    async function initializeProctoring() {
+        try {
+            // Request camera access
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: 640,
+                    height: 480,
+                    facingMode: 'user'
+                },
+                audio: false
+            });
+
+            const videoElement = document.getElementById('webcamVideo');
+            videoElement.srcObject = stream;
+
+            // Initialize proctoring with server
+            await fetch(`/api/proctoring/${sessionToken}/initialize/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                }
+            });
+
+            // Start periodic proctoring checks
+            startProctoring();
+
+            // Make camera preview draggable
+            makeCameraDraggable();
+
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            // Test case 1: Camera disabled/blocked/inaccessible → terminate immediately
+            terminateTestWithReason('Camera not available or access denied');
+        }
+    }
+
+    function makeCameraDraggable() {
+        const cameraPreview = document.getElementById('cameraPreview');
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+        cameraPreview.onmousedown = dragMouseDown;
+
+        function dragMouseDown(e) {
+            e = e || window.event;
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e = e || window.event;
+            e.preventDefault();
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            cameraPreview.style.top = (cameraPreview.offsetTop - pos2) + "px";
+            cameraPreview.style.left = (cameraPreview.offsetLeft - pos1) + "px";
+        }
+
+        function closeDragElement() {
+            document.onmouseup = null;
+            document.onmousemove = null;
+        }
+    }
+
+    function startProctoring() {
+        // Check every 1 second to measure 5s face absence and 5s head turn accurately
+        proctoringInterval = setInterval(captureAndAnalyzeFrame, 1000);
+
+        // Start continuous screen sharing monitoring during test
+        startScreenSharingMonitoring();
+    }
+
+    function stopProctoring() {
+        if (proctoringInterval) {
+            clearInterval(proctoringInterval);
+        }
+        if (screenSharingCheckInterval) {
+            clearInterval(screenSharingCheckInterval);
+            screenSharingCheckInterval = null;
+        }
+        if (screenSharingReturnCheckInterval) {
+            clearInterval(screenSharingReturnCheckInterval);
+            screenSharingReturnCheckInterval = null;
+        }
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        if (fullscreenTimer) {
+            clearInterval(fullscreenTimer);
+        }
+    }
+
+    // Start continuous screen sharing monitoring
+    function startScreenSharingMonitoring() {
+        // Prevent duplicate monitoring
+        if (screenSharingMonitoringActive) {
+            console.log('⚠️ Screen sharing monitoring already active, skipping...');
+            return;
+        }
+
+        // Clear any existing interval first
+        if (screenSharingCheckInterval) {
+            clearInterval(screenSharingCheckInterval);
+            screenSharingCheckInterval = null;
+        }
+
+        console.log(`🔒 Starting screen sharing monitoring - will check after ${SCREEN_SHARING_WARMUP_MS / 1000}s warm-up...`);
+        screenSharingMonitoringActive = true;
+
+        // ✅ FIX: Start checking only AFTER warm-up period (no immediate check)
+        setTimeout(() => {
+            console.log('✅ Warm-up complete - starting periodic screen sharing checks...');
+
+            // Do first check after warm-up
+            checkScreenSharingDuringTestAndTerminateIfNeeded();
+
+            // Then check every 15 seconds
+            screenSharingCheckInterval = setInterval(async () => {
+                console.log('Periodic screen sharing check (every 15 seconds)...');
+                await checkScreenSharingDuringTestAndTerminateIfNeeded();
+            }, 15000);
+        }, SCREEN_SHARING_WARMUP_MS);
+
+        console.log(`Screen sharing monitoring scheduled - first check in ${SCREEN_SHARING_WARMUP_MS / 1000} seconds`);
+    }
+
+    async function captureAndAnalyzeFrame() {
+        try {
+            const video = document.getElementById('webcamVideo');
+            if (!video || !video.srcObject || video.videoWidth === 0 || video.videoHeight === 0) {
+                terminateTestWithReason('Camera disabled or inaccessible');
+                return;
+            }
+
+            // Capture frame
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            const now = Date.now();
+
+            // 🚫 WARM-UP: ignore first few seconds
+            if (now - proctoringStartedAt < PROCTORING_WARMUP_MS) {
+                noFaceSince = null;
+                headTurnSince = null;
+                return;
+            }
+
+            // ⏱️ Face absent > 5 seconds
+            const personLeft5sExceeded =
+                (noFaceSince !== null && (now - noFaceSince) >= FACE_ABSENCE_MS);
+
+            // ⏱️ Head turned > 5 seconds (LOCKED)
+            let headTurnDurationExceeded = false;
+            if (
+                headTurnSince !== null &&
+                (now - headTurnSince) >= HEAD_TURN_MS &&
+                !headTurnViolationActive
+            ) {
+                headTurnDurationExceeded = true;
+                headTurnViolationActive = true; // 🔒 prevent repeat warnings
+            }
+
+            // ✅ Build request body FIRST
+            const body = {
+                image_data: imageData,
+                person_left_5s_exceeded: personLeft5sExceeded,
+                head_turn_duration_exceeded: headTurnDurationExceeded
+            };
+
+            // 🔁 Send to backend
+            const response = await fetch(
+                `/api/proctoring/${sessionToken}/process-frame/`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify(body)
+                }
+            );
+
+            const result = await response.json();
+            if (!result.success) return;
+
+            // 👤 Face presence tracking
+            if (result.face_detected) {
+                noFaceSince = null;
+            } else {
+                if (noFaceSince === null) noFaceSince = Date.now();
+            }
+
+            // 🧠 Head turn tracking (reset lock when normal)
+            if (result.extreme_head_turn && Math.abs(result.head_yaw_degrees) > 75) {
+                if (headTurnSince === null) headTurnSince = Date.now();
+            } else {
+                headTurnSince = null;
+                headTurnViolationActive = false; // 🔓 unlock
+            }
+
+            // Reset timers after violation fires
+            if (personLeft5sExceeded) noFaceSince = null;
+            if (headTurnDurationExceeded) headTurnSince = null;
+
+            // Update UI warnings
+            const count = result.current_warning_count ?? result.total_warnings;
+            if (count !== undefined) updateWarningCounter(count);
+
+            // 🚨 Termination
+            if (result.is_terminated) {
+                handleTestTermination(result.redirect_url);
+            }
+
+        } catch (error) {
+            console.error('Error in proctoring analysis:', error);
+        }
+    }
+
+
+    // async function captureAndAnalyzeFrame() {
+    //     try {
+    //         const video = document.getElementById('webcamVideo');
+    //         if (!video || !video.srcObject || video.videoWidth === 0 || video.videoHeight === 0) {
+    //             // Test case 1: Camera disabled/blocked/inaccessible → terminate immediately
+    //             terminateTestWithReason('Camera disabled or inaccessible');
+    //             return;
+    //         }
+    //         const canvas = document.createElement('canvas');
+    //         const context = canvas.getContext('2d');
+    //         canvas.width = video.videoWidth;
+    //         canvas.height = video.videoHeight;
+    //         context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    //         const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    //         const now = Date.now();
+    //         // Test case 5: face absent >5s → terminate (use state from previous responses)
+    //         const personLeft5sExceeded = (noFaceSince !== null && (now - noFaceSince) >= FACE_ABSENCE_MS);
+    //         // Test case 3: head turn ~90° continuous >5s → one warning per occurrence (max 2, 3rd = terminate)
+    //         const headTurnDurationExceeded = (headTurnSince !== null && (now - headTurnSince) >= HEAD_TURN_MS);
+    //         const body = {
+    //             image_data: imageData,
+    //             person_left_5s_exceeded: personLeft5sExceeded,
+    //             head_turn_duration_exceeded: headTurnDurationExceeded
+    //         };
+    //         const response = await fetch(`/api/proctoring/${sessionToken}/process-frame/`, {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    //             body: JSON.stringify(body)
+    //         });
+    //         const result = await response.json();
+    //         if (result.success) {
+    //             // Update state for next tick: face absence
+    //             if (result.face_detected) {
+    //                 noFaceSince = null;
+    //             } else {
+    //                 if (noFaceSince === null) noFaceSince = Date.now();
+    //             }
+    //             if (result.extreme_head_turn && Math.abs(result.head_yaw_degrees) > 75) {
+    //                 if (headTurnSince === null) headTurnSince = Date.now();
+    //             } else {
+    //                 headTurnSince = null;
+    //                 headTurnViolationActive = false; // 🔓 UNLOCK when head is normal
+    //             }
+    //             if (personLeft5sExceeded) noFaceSince = null;
+    //             if (headTurnDurationExceeded) headTurnSince = null;
+    //             const count = result.current_warning_count !== undefined ? result.current_warning_count : result.total_warnings;
+    //             if (count !== undefined) updateWarningCounter(count);
+    //             if (result.is_terminated) {
+    //                 handleTestTermination(result.redirect_url);
+    //                 return;
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error in proctoring analysis:', error);
+    //     }
+    // }
+
+
+    // ====================================================================
+    // 7. WINDOW AND TAB SWITCHING DETECTION
+    // ====================================================================
+    let lastResizeAt = 0;
+    function handleWindowResize() {
+        const now = Date.now();
+        if (now - pageLoadTime < VIOLATION_GRACE_PERIOD_MS) return;  // Ignore during load
+        if (now - lastResizeAt < TAB_DEBOUNCE_MS) return;
+        if (!isFullscreen()) {
+            lastResizeAt = now;
+            tabSwitchCount++;
+            recordBrowserViolation('tab_switch', 'Window resized or fullscreen exited');
+            const warning = document.getElementById('fullscreenWarning');
+            const countdown = document.getElementById('fullscreenCountdown');
+            if (warning && countdown) {
+                warning.style.display = 'flex';
+                fullscreenCountdown = 10;
+                if (fullscreenTimer) clearInterval(fullscreenTimer);
+                fullscreenTimer = setInterval(() => {
+                    fullscreenCountdown--;
+                    countdown.textContent = fullscreenCountdown;
+                    if (fullscreenCountdown <= 0) {
+                        clearInterval(fullscreenTimer);
+                        terminateTest();
+                    }
+                    if (isFullscreen()) {
+                        clearInterval(fullscreenTimer);
+                        warning.style.display = 'none';
+                    }
+                }, 1000);
+            }
+        }
+    }
+
+    function isFullscreen() {
+        return !!(document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.msFullscreenElement);
+    }
+
+
+
+    function showWarning(message) {
+        const warningAlert = document.getElementById('warningAlert');
+        const warningMessage = document.getElementById('warningMessage');
+        if (warningAlert && warningMessage) {
+            warningMessage.textContent = message;
+            warningAlert.style.display = 'block';
+            setTimeout(() => {
+                warningAlert.style.display = 'none';
+            }, 5000);
+        }
+    }
+
+    function terminateTest() {
+        stopProctoring();
+        fetch("/api/terminate-test/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrfToken()
+            },
+            body: JSON.stringify({
+                token: sessionToken,
+                reason: "Tab Switching/Window Resizing Violation"
+            })
+        }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("❌ Your test has been terminated due to window/tab violations.");
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(error => {
+                console.error("Termination error:", error);
+                alert("❌ Your test has been terminated due to window/tab violations.");
+                window.location.href = "/terminated/?token=" + sessionToken;
+            });
+    }
+
+    // Check screen sharing during test - called periodically and on tab changes
+    async function checkScreenSharingDuringTestAndTerminateIfNeeded() {
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`[${timestamp}] 🔍 Checking screen sharing...`);
+        try {
+            const url = `/api/proctoring/${sessionToken}/check-screen-sharing/`;
+            console.log(`[${timestamp}] 📡 Calling API: ${url}`);
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCsrfToken()
+                },
+                body: JSON.stringify({})
+            });
+
+            console.log(`[${timestamp}] 📥 Response status:`, response.status, response.statusText);
+
+            if (!response.ok) {
+                if (response.status === 429) {
+                    // Rate limit exceeded - log but don't spam, will retry on next interval
+                    const errorText = await response.text();
+                    console.warn(`[${timestamp}] ⚠️ Rate limit hit. Will retry on next check. Error:`, errorText);
+                    return false;
+                } else {
+                    console.error(`[${timestamp}] ❌ Screen sharing check failed:`, response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error(`[${timestamp}] Error response:`, errorText);
+                    return false;
+                }
+            }
+
+            const data = await response.json();
+            console.log(`[${timestamp}] 📊 Screen sharing check result:`, JSON.stringify(data, null, 2));
+
+            if (data.success && data.is_sharing) {
+                console.error(`[${timestamp}] 🚨 SCREEN SHARING DETECTED!`);
+                if (screenSharingCheckInterval) { clearInterval(screenSharingCheckInterval); screenSharingCheckInterval = null; }
+                if (screenSharingReturnCheckInterval) { clearInterval(screenSharingReturnCheckInterval); screenSharingReturnCheckInterval = null; }
+                const c = data.total_warnings ?? data.warning_count;
+                if (c !== undefined) updateWarningCounter(c);
+                alert("❌ Your test has been terminated due to screen sharing detected.");
+                handleTestTermination(`/terminated/?token=${sessionToken}&reason=${encodeURIComponent('Screen sharing detected')}`);
+                return true;
+            } else {
+                console.log(`[${timestamp}] ✅ No screen sharing detected.`);
+            }
+            return false;
+        } catch (error) {
+            console.error(`[${timestamp}] ❌ Error checking screen sharing during test:`, error);
+            console.error(`[${timestamp}] Error details:`, error.message, error.stack);
+            return false;
+        }
+    }
+
+    // Aggressive screen sharing check after tab return - runs multiple checks quickly
+    function startAggressiveScreenSharingCheckAfterReturn() {
+        console.log('🚀 Starting aggressive screen sharing check after tab return...');
+
+        // Clear any existing aggressive check
+        if (screenSharingReturnCheckInterval) {
+            clearInterval(screenSharingReturnCheckInterval);
+            screenSharingReturnCheckInterval = null;
+        }
+
+        let checkCount = 0;
+        const maxChecks = 10; // Check 10 times over 20 seconds
+
+        // Check immediately
+        checkScreenSharingDuringTestAndTerminateIfNeeded();
+
+        // Then check every 2 seconds for 20 seconds
+        screenSharingReturnCheckInterval = setInterval(async () => {
+            checkCount++;
+            console.log(`🔄 Aggressive check #${checkCount}/${maxChecks} after tab return...`);
+
+            const detected = await checkScreenSharingDuringTestAndTerminateIfNeeded();
+
+            if (detected) {
+                console.log('✅ Screen sharing detected in aggressive check - stopping');
+                if (screenSharingReturnCheckInterval) {
+                    clearInterval(screenSharingReturnCheckInterval);
+                    screenSharingReturnCheckInterval = null;
+                }
+                return;
+            }
+
+            // Stop after max checks
+            if (checkCount >= maxChecks) {
+                console.log('⏹️ Stopping aggressive check after max attempts');
+                if (screenSharingReturnCheckInterval) {
+                    clearInterval(screenSharingReturnCheckInterval);
+                    screenSharingReturnCheckInterval = null;
+                }
+            }
+        }, 2000); // Check every 2 seconds
+    }
+
+    // ====================================================================
+    // 8. MAIN INITIALIZATION - Fixed and Organized
+    // ====================================================================
+    let browserLockdown;
+    let round1Timer;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('Initializing Round 1 Assessment...');
+
+        // Initialize all systems
+        initializeProctoring();
+        setupTabSpecificViolationDetection();
+
+        // Initialize browser lockdown
+        browserLockdown = new BrowserLockdown();
+
+        // Initialize dynamic timer
+        const totalQuestions = parseInt('{{ questions|length }}') || 20;
+        round1Timer = new Round1Timer(totalQuestions, 60);
+
+        // Set up event listeners
+        setupEventListeners();
+
+        // Initial warning counter update
+        updateWarningCounter(0);
+    });
+
+    function setupEventListeners() {
+        // Prevent back navigation
+        history.pushState(null, null, location.href);
+        window.onpopstate = function (event) {
+            history.go(1);
+            alert("You cannot go back during the test.");
+        };
+
+        // Tab switch: visibilitychange only (blur removed - duplicates same event)
+        let lastTabSwitchAt = 0;
+        let lastAggressiveCheckAt = 0; // ✅ Track when we last did aggressive check
+        const TAB_DEBOUNCE_MS = 2000;
+        const AGGRESSIVE_CHECK_COOLDOWN_MS = 20000; // ✅ 20 seconds cooldown between aggressive checks
+        pageLoadTime = Date.now();
+
+        document.addEventListener("visibilitychange", async () => {
+            if (document.visibilityState === 'hidden') {
+                const now = Date.now();
+                if (now - pageLoadTime < VIOLATION_GRACE_PERIOD_MS) return;  // Ignore during load
+                if (now - lastTabSwitchAt < TAB_DEBOUNCE_MS) return;
+                lastTabSwitchAt = now;
+                tabSwitchCount++;
+                console.log('Tab switched away. Recording violation.');
+                recordBrowserViolation('tab_switch', 'User switched away from test tab');
+
+                // ✅ FIX: Only check screen sharing after warm-up period
+                if (tabSwitchCount === 1 && (now - pageLoadTime) >= SCREEN_SHARING_WARMUP_MS) {
+                    setTimeout(() => checkScreenSharingDuringTestAndTerminateIfNeeded(), 300);
+                }
+            } else if (document.visibilityState === 'visible' && tabSwitchCount >= 1) {
+                const now = Date.now();
+                // ✅ FIX: Only do aggressive check if enough time has passed
+                if ((now - pageLoadTime) >= SCREEN_SHARING_WARMUP_MS &&
+                    (now - lastAggressiveCheckAt) >= AGGRESSIVE_CHECK_COOLDOWN_MS) {
+                    console.log('Tab became visible - aggressive screen share check (with cooldown)');
+                    lastAggressiveCheckAt = now;
+                    startAggressiveScreenSharingCheckAfterReturn();
+                }
+            }
+        });
+
+
+
+        // Enhanced focus detection - start aggressive check when window regains focus after tab change
+        window.addEventListener("focus", async () => {
+            const now = Date.now();
+            // ✅ FIX: Only do aggressive check after warm-up and with cooldown
+            if (tabSwitchCount >= 1 &&
+                document.visibilityState === 'visible' &&
+                (now - pageLoadTime) >= SCREEN_SHARING_WARMUP_MS &&
+                (now - lastAggressiveCheckAt) >= AGGRESSIVE_CHECK_COOLDOWN_MS) {
+                console.log('🎯 Window regained focus after tab switch - starting AGGRESSIVE screen sharing check (with cooldown)...');
+                lastAggressiveCheckAt = now;
+                startAggressiveScreenSharingCheckAfterReturn();
+            }
+        });
+
+        // Also check on pageshow event (when page is shown from back/forward cache)
+        window.addEventListener("pageshow", (event) => {
+            const now = Date.now();
+            // ✅ FIX: Only do aggressive check after warm-up and with cooldown
+            if (tabSwitchCount >= 1 &&
+                !event.persisted &&
+                document.visibilityState === 'visible' &&
+                (now - pageLoadTime) >= SCREEN_SHARING_WARMUP_MS &&
+                (now - lastAggressiveCheckAt) >= AGGRESSIVE_CHECK_COOLDOWN_MS) {
+                console.log('📄 Page shown - starting AGGRESSIVE screen sharing check (with cooldown)...');
+                lastAggressiveCheckAt = now;
+                startAggressiveScreenSharingCheckAfterReturn();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'F12' ||
+                (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+                (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+                (e.ctrlKey && e.key === 'u') || (e.ctrlKey && e.key === 's')) {
+                e.preventDefault();
+                recordBrowserViolation('tab_switch', 'Blocked keyboard shortcut detected');
+            }
+        });
+
+
+
+        // Window resize detection
+        window.addEventListener('resize', handleWindowResize);
+
+        // Clean up when page unloads
+        window.addEventListener('beforeunload', function () {
+            stopProctoring();
+            if (round1Timer) {
+                round1Timer.destroy();
+            }
+        });
+    }
+
+    // ====================================================================
+    // 9. FORM SUBMISSION HANDLER - FINAL FIXED VERSION
+    // ====================================================================
+    document.getElementById('examForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        console.log('=== FORM SUBMISSION STARTED ===');
+
+        // Stop proctoring first
+        try {
+            stopProctoring();
+        } catch (proctorError) {
+            console.warn('Proctoring stop error:', proctorError);
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Evaluating with AI...';
+
+        // 1. COLLECT ANSWERS SAFELY
+        const answers = {};
+        let hasAnswers = false;
+
+        try {
+            const questionCards = document.querySelectorAll('.question-card');
+            console.log(`Found ${questionCards.length} question cards`);
+
+            questionCards.forEach((card, index) => {
+                try {
+                    const questionId = card.dataset.questionId;
+                    if (!questionId) {
+                        console.warn(`Question card ${index} has no data-question-id`);
+                        return;
+                    }
+
+                    console.log(`Processing question ${questionId}`);
+
+                    // Handle MCQ questions
+                    const radioName = `question_${questionId}`;
+                    const selectedRadio = card.querySelector(`input[type="radio"][name="${radioName}"]:checked`);
+
+                    if (selectedRadio) {
+                        if (selectedRadio.value !== undefined && selectedRadio.value !== null) {
+                            answers[radioName] = selectedRadio.value;
+                            hasAnswers = true;
+                            console.log(`✓ MCQ Q${questionId}: ${selectedRadio.value}`);
+                        } else {
+                            console.warn(`Radio button for Q${questionId} has no value`);
+                        }
+                    }
+
+                    // Handle short answer questions
+                    const textArea = card.querySelector(`textarea[name="${radioName}"]`);
+                    if (textArea) {
+                        const textValue = textArea.value.trim();
+                        if (textValue !== '') {
+                            answers[radioName] = textValue;
+                            hasAnswers = true;
+                            console.log(`✓ Text Q${questionId}: ${textValue.substring(0, 30)}...`);
+                        }
+                    }
+                } catch (cardError) {
+                    console.error(`Error processing card ${index}:`, cardError);
+                }
+            });
+        } catch (collectionError) {
+            console.error('Error collecting answers:', collectionError);
+        }
+
+        // 2. VALIDATE ANSWERS
+        console.log('Answers collected:', Object.keys(answers).length);
+        console.log('Answer data:', answers);
+
+        if (!hasAnswers) {
+            alert('Please answer at least one question before submitting.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Answers';
+            return;
+        }
+
+        // 3. GET CSRF TOKEN
+        const csrfToken = getCsrfToken();
+        if (!csrfToken) {
+            console.error('No CSRF token found!');
+            alert('Security error: Cannot verify request. Please refresh the page.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Answers';
+            return;
+        }
+
+        // 4. SUBMIT TO SERVER
+        try {
+            console.log(`Submitting to: /candidate/${sessionToken}/round1/submit/`);
+            console.log('CSRF Token present:', csrfToken ? 'Yes' : 'No');
+
+            const response = await fetch(`/candidate/${sessionToken}/round1/submit/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    answers: answers,
+                    timestamp: new Date().toISOString()
+                })
+            });
+
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server error response:', errorText);
+                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log('Server response:', result);
+
+            if (result.success) {
+                if (result.passed) {
+                    alert('✅ Congratulations! You passed Round 1. Moving to Round 2...');
+                    window.location.href = `/candidate/${sessionToken}/round2/`;
+                } else {
+                    alert(`⚠️ You scored ${result.percentage}%. Moving to results...`);
+                    window.location.href = `/candidate/${sessionToken}/results/`;
+                }
+            } else {
+                alert('Error submitting answers: ' + (result.error || 'Unknown error occurred.'));
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Answers';
+            }
+        } catch (error) {
+            console.error('Submission error details:', error);
+
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                alert('Network error: Cannot connect to server. Please check your internet connection.');
+            } else {
+                alert('Error submitting answers: ' + error.message);
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Answers';
+        }
+    });
+</script>
+{% endblock %}

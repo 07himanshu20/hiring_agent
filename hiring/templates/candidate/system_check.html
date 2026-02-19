@@ -1,0 +1,604 @@
+{% extends 'base.html' %}
+
+{% block title %}System Check - AI Hiring Agent{% endblock %}
+
+{% block extra_css %}
+<style>
+    .system-check-card {
+        border-left: 4px solid #0d6efd;
+    }
+    .check-status {
+        font-weight: bold;
+        padding: 5px 10px;
+        border-radius: 4px;
+    }
+    .status-pass {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .status-fail {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .status-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .screen-sharing-alert {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        width: 90%;
+        max-width: 600px;
+        display: none;
+    }
+    #cameraPreview {
+        width: 300px;
+        height: 225px;
+        border: 2px solid #0d6efd;
+        border-radius: 8px;
+        background: #000;
+        margin: 10px auto;
+    }
+    .check-item {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Screen Sharing Alert -->
+<div class="alert alert-danger screen-sharing-alert" id="screenSharingAlert">
+    <h4><i class="fas fa-exclamation-triangle"></i> Screen Sharing Detected</h4>
+    <!-- Content (message + buttons) will be fully controlled by JavaScript -->
+    <div id="screenSharingMessage">
+        Your screen is being shared. Please stop screen sharing to continue with the test.
+    </div>
+</div>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card system-check-card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-laptop-code"></i> System Requirements Check</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Important Instructions</h6>
+                        <p class="mb-0">
+                            Please complete all system checks before starting your test. 
+                            Ensure your camera and microphone are working properly.
+                        </p>
+                    </div>
+
+                    <!-- Camera Check -->
+                    <div class="check-item">
+                        <h5><i class="fas fa-camera"></i> Camera Access</h5>
+                        <p>We need to verify your camera is working for proctoring.</p>
+                        
+                        <div id="cameraPreview">
+                            <video id="webcamVideo" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                            <div style="position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">
+                                Camera Preview
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <span id="cameraStatus" class="check-status status-warning">Checking...</span>
+                        </div>
+                        
+                        <div class="mt-2" id="cameraControls" style="display: none;">
+                            <button class="btn btn-sm btn-outline-primary" onclick="retryCameraAccess()">
+                                <i class="fas fa-redo"></i> Retry Camera
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Microphone Check -->
+                    <div class="check-item">
+                        <h5><i class="fas fa-microphone"></i> Microphone Access</h5>
+                        <p>We need microphone access for voice-based questions.</p>
+                        
+                        <div class="mt-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="testMicrophone()">
+                                <i class="fas fa-record-vinyl"></i> Test Microphone
+                            </button>
+                            <div id="audioVisualizer" style="display: none; margin-top: 10px;">
+                                <canvas id="audioCanvas" width="300" height="50" style="border: 1px solid #ccc;"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <span id="microphoneStatus" class="check-status status-warning">Not tested</span>
+                        </div>
+                    </div>
+
+                    <!-- Screen Sharing Check -->
+                    <div class="check-item">
+                        <h5><i class="fas fa-desktop"></i> Screen Sharing Check</h5>
+                        <p>We need to ensure your screen is not being shared with others.</p>
+                        
+                        <div class="mt-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="checkScreenSharing()">
+                                <i class="fas fa-shield-alt"></i> Check for Screen Sharing
+                            </button>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <span id="screenSharingStatus" class="check-status status-warning">Not checked</span>
+                        </div>
+                        
+                        <div id="screenSharingDetails" class="mt-2" style="display: none;">
+                            <small class="text-muted" id="sharingDetailsText"></small>
+                        </div>
+                    </div>
+
+                    <!-- Browser Compatibility -->
+                    <div class="check-item">
+                        <h5><i class="fas fa-browser"></i> Browser Compatibility</h5>
+                        <p>Checking if your browser supports all required features.</p>
+                        
+                        <div class="mt-2">
+                            <span id="browserStatus" class="check-status">Checking...</span>
+                        </div>
+                        
+                        <div id="browserDetails" class="mt-2">
+                            <small class="text-muted">
+                                Detected: <span id="browserInfo"></span>
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Proctoring Rules -->
+                    <div class="check-item">
+                        <h5><i class="fas fa-clipboard-check"></i> Proctoring Rules</h5>
+                        <div class="alert alert-warning">
+                            <h6>Strict Proctoring Rules:</h6>
+                            <ul class="mb-0">
+                                <li>✅ Only one person allowed in camera view</li>
+                                <li>✅ Camera must remain ON and unobstructed</li>
+                                <li>✅ No extreme head turns or looking away</li>
+                                <li>✅ No screen sharing or remote access</li>
+                                <li>✅ No tab switching or window resizing</li>
+                                <li>✅ No multiple voices detected</li>
+                                <li>✅ Natural behaviors (coughing, sneezing) are allowed</li>
+                                <li>✅ Slight downward looks (for keyboard) are allowed</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Start Test Button -->
+                    <div class="text-center mt-4">
+                        <button class="btn btn-success btn-lg" id="startTestBtn" disabled onclick="startTest()">
+                            <i class="fas fa-play-circle"></i> Start Test
+                        </button>
+                        <p class="text-muted mt-2">
+                            <small>All system checks must pass before starting the test</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let cameraStream = null;
+    let audioContext = null;
+    let analyser = null;
+    let microphoneStream = null;
+    let screenSharingDetected = false;
+    let allChecksPassed = false;
+
+    // Initialize system checks
+    document.addEventListener('DOMContentLoaded', function() {
+        checkBrowserCompatibility();
+        initializeCamera();
+        startContinuousScreenSharingCheck();
+    });
+
+    function checkBrowserCompatibility() {
+        const browserInfo = {
+            'mediaDevices': !!navigator.mediaDevices,
+            'getUserMedia': !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+            'mediaRecorder': !!window.MediaRecorder,
+            'webAudio': !!window.AudioContext || !!window.webkitAudioContext,
+            'fullscreen': !!document.fullscreenEnabled
+        };
+
+        const browserName = getBrowserName();
+        document.getElementById('browserInfo').textContent = `${browserName} - ${navigator.userAgent.split(' ').pop()}`;
+
+        const allSupported = Object.values(browserInfo).every(Boolean);
+        const statusElement = document.getElementById('browserStatus');
+        
+        if (allSupported) {
+            statusElement.textContent = 'All features supported';
+            statusElement.className = 'check-status status-pass';
+        } else {
+            statusElement.textContent = 'Some features not supported';
+            statusElement.className = 'check-status status-warning';
+        }
+
+        updateStartButton();
+    }
+
+    function getBrowserName() {
+        const userAgent = navigator.userAgent;
+        if (userAgent.includes('Chrome')) return 'Chrome';
+        if (userAgent.includes('Firefox')) return 'Firefox';
+        if (userAgent.includes('Safari')) return 'Safari';
+        if (userAgent.includes('Edge')) return 'Edge';
+        return 'Unknown';
+    }
+
+    async function initializeCamera() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: 640, 
+                    height: 480,
+                    facingMode: 'user'
+                },
+                audio: false
+            });
+            
+            const videoElement = document.getElementById('webcamVideo');
+            videoElement.srcObject = cameraStream;
+            
+            document.getElementById('cameraStatus').textContent = 'Camera working';
+            document.getElementById('cameraStatus').className = 'check-status status-pass';
+            document.getElementById('cameraControls').style.display = 'none';
+            
+        } catch (error) {
+            console.error('Camera access error:', error);
+            document.getElementById('cameraStatus').textContent = 'Camera access denied';
+            document.getElementById('cameraStatus').className = 'check-status status-fail';
+            document.getElementById('cameraControls').style.display = 'block';
+        }
+        
+        updateStartButton();
+    }
+
+    async function retryCameraAccess() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        await initializeCamera();
+    }
+
+    async function testMicrophone() {
+        try {
+            microphoneStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: false
+            });
+            
+            // Initialize audio context and analyser
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(microphoneStream);
+            source.connect(analyser);
+            
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            // Show visualizer
+            document.getElementById('audioVisualizer').style.display = 'block';
+            visualizeAudio(analyser, dataArray, bufferLength);
+            
+            document.getElementById('microphoneStatus').textContent = 'Microphone working';
+            document.getElementById('microphoneStatus').className = 'check-status status-pass';
+            
+        } catch (error) {
+            console.error('Microphone access error:', error);
+            document.getElementById('microphoneStatus').textContent = 'Microphone access denied';
+            document.getElementById('microphoneStatus').className = 'check-status status-fail';
+        }
+        
+        updateStartButton();
+    }
+
+    function visualizeAudio(analyser, dataArray, bufferLength) {
+        const canvas = document.getElementById('audioCanvas');
+        const canvasCtx = canvas.getContext('2d');
+        
+        function draw() {
+            requestAnimationFrame(draw);
+            
+            analyser.getByteFrequencyData(dataArray);
+            
+            canvasCtx.fillStyle = 'rgb(255, 255, 255)';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+            
+            for(let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 2;
+                
+                canvasCtx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                
+                x += barWidth + 1;
+            }
+        }
+        
+        draw();
+    }
+
+    
+
+    function startContinuousScreenSharingCheck() {
+        // Check for screen sharing every 10 seconds
+        setInterval(checkScreenSharing, 10000);
+        // Initial check
+        setTimeout(checkScreenSharing, 2000);
+    }
+
+    // Compact screen sharing alert:
+    // - single line message
+    // - shows how many apps/displays are detected (from details string)
+    // - simple Re-check + optional Force Terminate button
+    function showScreenSharingAlert(details, detectedApps) {
+    const alert = document.getElementById('screenSharingAlert');
+    const message = document.getElementById('screenSharingMessage');
+    
+        const appsCount = detectedApps && detectedApps.length ? detectedApps.length : 0;
+        const appNames = appsCount
+            ? detectedApps.map(app => app.name || app).join(', ')
+            : '';
+
+        const mainLine = details || 'Screen sharing detected. Please stop sharing and click Re-check.';
+
+        let html = `
+            <p><strong>${mainLine}</strong></p>
+            ${appsCount ? `<p><small>Detected apps (${appsCount}): ${appNames}</small></p>` : ''}
+            <div class="mt-2">
+            <button class="btn btn-warning me-2" onclick="recheckScreenSharing()">
+                <i class="fas fa-sync-alt"></i> Re-check
+            </button>
+    `;
+    
+        if (appsCount) {
+            html += `
+            <button class="btn btn-danger" onclick="forceTerminateSharingApps()">
+                    Force Terminate Sharing Apps
+            </button>
+        `;
+    }
+    
+        html += `</div>`;
+    
+        message.innerHTML = html;
+    alert.style.display = 'block';
+}
+
+async function forceTerminateSharingApps() {
+    try {
+        const response = await fetch('/api/proctoring/{{ session.token }}/force-terminate-sharing/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+        
+        const result = await response.json();
+        
+        // Build alert message
+        let alertMessage = '';
+        if (result.terminated_apps && result.terminated_apps.length > 0) {
+            alertMessage += `✅ Terminated ${result.terminated_apps.length} screen sharing app(s).\n\n`;
+        }
+        
+        if (result.browser_warnings && result.browser_warnings.length > 0) {
+            alertMessage += `⚠️ IMPORTANT: Detected browser(s) with screen sharing:\n`;
+            result.browser_warnings.forEach(warning => {
+                alertMessage += `- ${warning.service}: ${warning.message}\n`;
+            });
+            alertMessage += `\nPlease manually close the screen sharing tab in your browser.\n\n`;
+        }
+        
+        if (result.failed && result.failed.length > 0) {
+            alertMessage += `❌ Could not terminate ${result.failed.length} process(es).\n`;
+        }
+        
+        if (!alertMessage) {
+            alertMessage = result.message || 'No processes to terminate.';
+        }
+        
+        alert(alertMessage);
+        
+        // Hide alert and re-check after a delay
+        hideScreenSharingAlert();
+        setTimeout(checkScreenSharing, 2000);
+        
+    } catch (error) {
+        console.error('Force termination error:', error);
+        alert('Error terminating applications. Please close sharing apps manually.');
+    }
+}
+
+    function hideScreenSharingAlert() {
+        document.getElementById('screenSharingAlert').style.display = 'none';
+    }
+
+    function recheckScreenSharing() {
+        checkScreenSharing();
+    }
+
+    function updateStartButton() {
+        const cameraOk = document.getElementById('cameraStatus').className.includes('status-pass');
+        const microphoneOk = document.getElementById('microphoneStatus').className.includes('status-pass');
+        const screenSharingOk = !screenSharingDetected;
+        const browserOk = document.getElementById('browserStatus').className.includes('status-pass');
+        
+        allChecksPassed = cameraOk && microphoneOk && screenSharingOk && browserOk;
+        
+        const startBtn = document.getElementById('startTestBtn');
+        startBtn.disabled = !allChecksPassed;
+        
+        if (allChecksPassed) {
+            startBtn.innerHTML = '<i class="fas fa-play-circle"></i> Start Test - All Checks Passed';
+        } else {
+            startBtn.innerHTML = '<i class="fas fa-play-circle"></i> Start Test (Complete checks first)';
+        }
+    }
+
+    async function startTest() {
+        if (!allChecksPassed) {
+            alert('Please complete all system checks before starting the test.');
+            return;
+        }
+
+        try {
+            // Mark system check as completed
+            const response = await fetch(`/api/system-check/{{ session.token }}/complete/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                // Stop camera and microphone streams
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+                if (microphoneStream) {
+                    microphoneStream.getTracks().forEach(track => track.stop());
+                }
+                if (audioContext) {
+                    audioContext.close();
+                }
+                
+                // Redirect to Round 1
+                window.location.href = `/candidate/{{ session.token }}/round1/`;
+            } else {
+                alert('Error starting test. Please try again.');
+            }
+            
+        } catch (error) {
+            console.error('Error starting test:', error);
+            alert('Error starting test. Please try again.');
+        }
+    }
+
+    // Prevent back navigation
+    history.pushState(null, null, location.href);
+    window.onpopstate = function(event) {
+        history.go(1);
+        alert("You cannot go back during the system check.");
+    };
+
+
+    // Screen sharing check function
+    async function checkScreenSharing() {
+        const statusElement = document.getElementById('screenSharingStatus');
+        const detailsElement = document.getElementById('screenSharingDetails');
+        const detailsText = document.getElementById('sharingDetailsText');
+        
+        try {
+            statusElement.textContent = 'Checking...';
+            statusElement.className = 'check-status status-warning';
+            
+            const response = await fetch('/validate-system/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({})
+            });
+            
+            const data = await response.json();
+            
+        if (data.error) {
+            console.error('Screen sharing check error:', data.error);
+                statusElement.textContent = 'Check failed - ' + data.error;
+                statusElement.className = 'check-status status-warning';
+                screenSharingDetected = false; // Don't block on errors
+                detailsElement.style.display = 'none';
+            } else {
+                // Process normal response
+                if (data.can_proceed && !data.is_sharing) {
+                    statusElement.textContent = 'No screen sharing detected';
+                    statusElement.className = 'check-status status-pass';
+                    screenSharingDetected = false;
+                    detailsElement.style.display = 'none';
+                    // If everything is OK, hide any existing alert
+                    hideScreenSharingAlert();
+                } else {
+                    // Screen sharing detected
+                    statusElement.textContent = 'Screen sharing detected!';
+                    statusElement.className = 'check-status status-fail';
+                    screenSharingDetected = true;
+                    
+                    // Show details
+                    let details = [];
+                    let detectedAppsForAlert = [];
+                    
+                    // Add actual screen sharing apps (not browsers)
+                    if (data.detected_apps && data.detected_apps.length > 0) {
+                        const appNames = data.detected_apps.map(app => app.name || app).join(', ');
+                        details.push(`Detected apps: ${appNames}`);
+                        detectedAppsForAlert = data.detected_apps;
+                    }
+                    
+                    // Add browser tabs with screen sharing
+                    if (data.detected_browser_tabs && data.detected_browser_tabs.length > 0) {
+                        const browserServices = data.detected_browser_tabs.join(', ');
+                        details.push(`Browser screen sharing detected: ${browserServices}. Please close the sharing tab manually.`);
+                    }
+                    
+                    // Add multiple displays
+                    if (data.display_issues && data.display_issues.num_displays > 1) {
+                        details.push(`Multiple displays detected: ${data.display_issues.num_displays} monitors connected`);
+                    }
+                    
+                    if (details.length > 0) {
+                        detailsText.textContent = details.join(' | ');
+                        detailsElement.style.display = 'block';
+                    } else {
+                        detailsElement.style.display = 'none';
+                    }
+                    
+                    // Show alert (only show apps that can be terminated, not browsers)
+                    showScreenSharingAlert(
+                        details.length > 0 ? details.join('. ') : 'Screen sharing detected',
+                        detectedAppsForAlert  // Only actual apps, not browsers
+                    );
+                }
+            }
+            
+            updateStartButton();
+            
+        } catch (error) {
+            console.error('Screen sharing check failed:', error);
+            statusElement.textContent = 'Check unavailable - please ensure no screen sharing is active';
+            statusElement.className = 'check-status status-warning';
+            screenSharingDetected = false; // Don't block on network errors
+            detailsElement.style.display = 'none';
+            updateStartButton();
+        }
+}
+</script>
+{% endblock %}

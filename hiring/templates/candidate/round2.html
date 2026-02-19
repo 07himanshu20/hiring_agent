@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Round 2: Voice Interview - AI Hiring Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(90deg, #2c3e50, #4a6491);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .progress-bar {
+            background: #f1f1f1;
+            height: 8px;
+            border-radius: 4px;
+            margin: 10px 20px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #f44336;
+            display: none;
+        }
+        
+        .question-section {
+            background: #f9f9f9;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 4px solid #4a6491;
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .question-number {
+            background: #4a6491;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .question-text {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #2c3e50;
+        }
+        
+        .audio-section {
+            background: #f5f7fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .audio-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+        }
+        
+        .play-btn {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+        
+        .play-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        .record-btn {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+        }
+        
+        .record-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        .record-btn.recording {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+            width: 200px;
+            justify-content: center;
+        }
+        
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        .submit-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .visualization {
+            height: 100px;
+            background: #e0e7ff;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            gap: 3px;
+            padding: 10px;
+        }
+        
+        .bar {
+            width: 8px;
+            background: linear-gradient(to top, #4a6491, #6b8cce);
+            border-radius: 4px 4px 0 0;
+            transition: height 0.2s ease;
+        }
+        
+        .result-section {
+            background: #e8f5e8;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .score-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2e7d32;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .feedback-text {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+
+        /* REMOVED: Camera Preview Styles */
+        
+        .proctoring-alert {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .warning-alert {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .fullscreen-warning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-size: 24px;
+            text-align: center;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .recording-timer {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #f44336;
+            margin: 10px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- ADDED: Fullscreen Warning -->
+    <div class="fullscreen-warning" id="fullscreenWarning">
+        <div>
+            <h2>⚠️ Warning: Fullscreen Required</h2>
+            <p>Please return to fullscreen mode to continue your test.</p>
+            <p>You have <span id="fullscreenCountdown">10</span> seconds to comply.</p>
+        </div>
+    </div>
+
+    <!-- ADDED: Proctoring Warning Alert -->
+    <div class="alert alert-danger proctoring-alert" id="proctoringAlert">
+        <strong>⚠️ Proctoring Violation:</strong> <span id="violationMessage"></span>
+        <br><strong>Warnings:</strong> <span id="warningCount">0</span>/3
+    </div>
+
+    <!-- ADDED: Warning Alert -->
+    <div class="alert alert-warning warning-alert" id="warningAlert">
+        <strong>⚠️ Warning:</strong> Do not switch tabs, resize windows, or open multiple windows. Another attempt will terminate your test immediately.
+    </div>
+
+    <!-- REMOVED: Camera Preview -->
+
+    <div class="container">
+        <header>
+            <h1>Round 2: Voice Interview</h1>
+            <p>{{ session.hiring_request.work_profile }} | {{ session.hiring_request.difficulty_level|title }}</p>
+        </header>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ progress_percentage }}%"></div>
+        </div>
+        <div class="progress-text">Question {{ current_question_index }} of {{ total_questions }} ({{ progress_percentage|floatformat:0 }}%)</div>
+        
+        <div class="content">
+            <div class="error-message" id="errorMessage"></div>
+            
+            <div class="question-section">
+                <div class="question-header">
+                    <div class="question-number">Question {{ current_question_index }}</div>
+                </div>
+                <div class="question-text" id="questionText">
+                    {{ current_question.question_text }}
+                </div>
+            </div>
+            
+            <div class="audio-section">
+                <h3>Record Your Answer</h3>
+                
+                <div class="audio-controls">
+                    <button class="play-btn" id="playBtn">
+                        <span>🎵</span> Play Question
+                    </button>
+                    <button class="record-btn" id="recordBtn">
+                        <span>🎤</span> Start Recording
+                    </button>
+                    <button class="submit-btn" id="submitBtn" disabled>
+                        <span>📤</span> Submit Answer
+                    </button>
+                </div>
+                
+                <div class="visualization" id="visualization">
+                    <!-- Bars will be generated by JavaScript -->
+                </div>
+                
+                <div class="recording-timer" id="recordingTimer">00:00</div>
+                
+                <div id="recordingStatus" style="text-align: center; color: #666; margin: 10px 0;">
+                    Press "Start Recording" to begin your response
+                </div>
+                
+                <div class="result-section" id="resultSection">
+                    <h3>Evaluation Result</h3>
+                    <div class="score-display" id="scoreDisplay">Score: 0%</div>
+                    <div class="feedback-text" id="feedbackText"></div>
+                    <div id="nextQuestionBtn" style="text-align: center; margin-top: 15px; display: none;">
+                        <button class="submit-btn" onclick="goToNextQuestion()">Next Question →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // MODIFIED: Removed camera proctoring variables
+        let warningCount = 0;
+        const maxWarnings = 3;
+        let tabSwitchCount = 0;
+        let warningShown = false;
+        let fullscreenCountdown = 10;
+        let fullscreenTimer = null;
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let audioContext;
+        let analyser;
+        let animationId;
+        let recordingTimer;
+        let recordingSeconds = 0;
+        
+        const questionText = document.getElementById('questionText').textContent;
+        const recordBtn = document.getElementById('recordBtn');
+        const playBtn = document.getElementById('playBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const recordingTimerElement = document.getElementById('recordingTimer');
+        const visualization = document.getElementById('visualization');
+        const resultSection = document.getElementById('resultSection');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const feedbackText = document.getElementById('feedbackText');
+        const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        // MODIFIED: Removed camera proctoring initialization
+        function initializeProctoring() {
+            try {
+                // Request fullscreen mode only (no camera)
+                requestFullscreen();
+                
+                // Initialize tab/window switching detection
+                startTabSwitchingDetection();
+                
+            } catch (error) {
+                console.error('Error initializing proctoring:', error);
+            }
+        }
+
+        function requestFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen();
+            }
+        }
+
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) { /* Safari */
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { /* IE11 */
+                document.msExitFullscreen();
+            }
+        }
+
+        function isFullscreen() {
+            return !!(document.fullscreenElement || 
+                     document.webkitFullscreenElement || 
+                     document.msFullscreenElement);
+        }
+
+        // MODIFIED: Only tab switching detection, no camera
+        function startTabSwitchingDetection() {
+            // Tab switching is handled by event listeners below
+            console.log("Tab switching detection activated");
+        }
+
+        function stopProctoring() {
+            if (fullscreenTimer) {
+                clearInterval(fullscreenTimer);
+            }
+            exitFullscreen();
+        }
+
+        function handleProctoringViolation(type, message) {
+            // Show violation alert
+            const alert = document.getElementById('proctoringAlert');
+            const messageElement = document.getElementById('violationMessage');
+            const countElement = document.getElementById('warningCount');
+            
+            messageElement.textContent = message;
+            countElement.textContent = warningCount;
+            alert.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        function terminateTestDueToProctoring() {
+            stopProctoring();
+            alert('❌ Your test has been terminated due to multiple proctoring violations.');
+            window.location.href = `/terminated/?token={{ session.token }}`;
+        }
+
+        function showWarning() {
+            const warningAlert = document.getElementById('warningAlert');
+            warningAlert.style.display = 'block';
+            setTimeout(() => {
+                warningAlert.style.display = 'none';
+            }, 5000);
+        }
+
+        function terminateTest() {
+            stopProctoring();
+            fetch("/api/terminate-test/", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ 
+                    token: "{{ session.token }}",
+                    reason: "Tab Switching/Window Resizing Violation" 
+                })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      alert("❌ Your test has been terminated due to window/tab violations.");
+                      window.location.href = data.redirect_url;
+                  }
+              })
+              .catch(error => {
+                  console.error("Termination error:", error);
+                  alert("❌ Your test has been terminated due to window/tab violations.");
+                  window.location.href = "/terminated/?token={{ session.token }}";
+              });
+        }
+
+        function handleWindowResize() {
+            // Check if window is not in fullscreen
+            if (!isFullscreen()) {
+                tabSwitchCount++;
+                if (tabSwitchCount === 1 && !warningShown) {
+                    showWarning();
+                    warningShown = true;
+                    
+                    // Show fullscreen warning and start countdown
+                    const warning = document.getElementById('fullscreenWarning');
+                    const countdown = document.getElementById('fullscreenCountdown');
+                    warning.style.display = 'flex';
+                    fullscreenCountdown = 10;
+                    
+                    fullscreenTimer = setInterval(() => {
+                        fullscreenCountdown--;
+                        countdown.textContent = fullscreenCountdown;
+                        
+                        if (fullscreenCountdown <= 0) {
+                            clearInterval(fullscreenTimer);
+                            terminateTest();
+                        }
+                        
+                        // If user returns to fullscreen, hide warning
+                        if (isFullscreen()) {
+                            clearInterval(fullscreenTimer);
+                            warning.style.display = 'none';
+                        }
+                    }, 1000);
+                    
+                } else if (tabSwitchCount >= 2) {
+                    terminateTest();
+                }
+            }
+        }
+
+        // Create visualization bars
+        function createVisualizationBars() {
+            visualization.innerHTML = ''; // Clear existing bars
+            for (let i = 0; i < 40; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = '5px';
+                visualization.appendChild(bar);
+            }
+        }
+        
+        createVisualizationBars();
+        const bars = document.querySelectorAll('.bar');
+        
+        // Text-to-Speech for playing question
+        playBtn.addEventListener('click', () => {
+            if ('speechSynthesis' in window) {
+                // Stop any ongoing speech
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(questionText);
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                
+                utterance.onstart = () => {
+                    playBtn.disabled = true;
+                    playBtn.innerHTML = '<span>🔊</span> Playing...';
+                    animateVisualization();
+                };
+                
+                utterance.onend = () => {
+                    playBtn.disabled = false;
+                    playBtn.innerHTML = '<span>🎵</span> Play Question';
+                    stopVisualization();
+                };
+                
+                utterance.onerror = () => {
+                    playBtn.disabled = false;
+                    playBtn.innerHTML = '<span>🎵</span> Play Question';
+                    stopVisualization();
+                    showError('Error playing audio. Please read the question.');
+                };
+                
+                speechSynthesis.speak(utterance);
+            } else {
+                showError('Text-to-speech not supported in your browser. Please read the question above.');
+            }
+        });
+        
+        // Recording functionality with better error handling
+        recordBtn.addEventListener('click', async () => {
+            if (!isRecording) {
+                try {
+                    // Request microphone access
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        } 
+                    });
+                    
+                    mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'audio/webm;codecs=opus'
+                    });
+                    
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        // Clean up stream
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                    
+                    mediaRecorder.onerror = (event) => {
+                        console.error('MediaRecorder error:', event.error);
+                        showError('Recording error: ' + event.error.name);
+                        stopRecording();
+                    };
+                    
+                    mediaRecorder.start(100); // Collect data every 100ms
+                    isRecording = true;
+                    
+                    // Update UI for recording state
+                    recordBtn.innerHTML = '<span>⏹️</span> Stop Recording';
+                    recordBtn.classList.add('recording');
+                    submitBtn.disabled = true;
+                    playBtn.disabled = true;
+                    recordingStatus.textContent = 'Recording... Speak clearly into your microphone.';
+                    recordingStatus.style.color = '#f44336';
+                    hideError();
+                    
+                    // Start recording timer
+                    startRecordingTimer();
+                    
+                    // Start audio visualization
+                    setupAudioVisualization(stream);
+                    animateVisualization();
+                    
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    if (error.name === 'NotAllowedError') {
+                        showError('Microphone access denied. Please allow microphone permissions and try again.');
+                    } else if (error.name === 'NotFoundError') {
+                        showError('No microphone found. Please check your audio device.');
+                    } else if (error.name === 'NotSupportedError') {
+                        showError('Audio recording is not supported in your browser.');
+                    } else {
+                        showError('Error accessing microphone: ' + error.message);
+                    }
+                }
+            } else {
+                stopRecording();
+            }
+        });
+        
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                recordBtn.innerHTML = '<span>🎤</span> Start Recording';
+                recordBtn.classList.remove('recording');
+                submitBtn.disabled = audioChunks.length === 0;
+                playBtn.disabled = false;
+                recordingStatus.textContent = audioChunks.length > 0 ? 
+                    'Recording complete. Ready to submit.' : 
+                    'No audio recorded. Please try again.';
+                recordingStatus.style.color = audioChunks.length > 0 ? '#4CAF50' : '#666';
+                
+                stopRecordingTimer();
+                stopVisualization();
+            }
+        }
+        
+        function startRecordingTimer() {
+            recordingSeconds = 0;
+            recordingTimerElement.style.display = 'block';
+            updateRecordingTimer();
+            
+            recordingTimer = setInterval(() => {
+                recordingSeconds++;
+                updateRecordingTimer();
+                
+                // Auto-stop after 3 minutes (safety measure)
+                if (recordingSeconds >= 180) {
+                    stopRecording();
+                    showError('Recording stopped automatically after 3 minutes.');
+                }
+            }, 1000);
+        }
+        
+        function stopRecordingTimer() {
+            if (recordingTimer) {
+                clearInterval(recordingTimer);
+                recordingTimerElement.style.display = 'none';
+            }
+        }
+        
+        function updateRecordingTimer() {
+            const minutes = Math.floor(recordingSeconds / 60);
+            const seconds = recordingSeconds % 60;
+            recordingTimerElement.textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Submit functionality
+        submitBtn.addEventListener('click', async () => {
+            if (audioChunks.length === 0) {
+                showError('Please record your answer before submitting.');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>⏳</span> Processing...';
+            document.body.classList.add('loading');
+            hideError();
+            
+            try {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'response.webm');
+                formData.append('question_id', '{{ current_question.id }}');
+                
+                const response = await fetch('/candidate/{{ session.token }}/round2/submit/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Server error (Status: ${response.status}). Please try again.`);
+                }
+                
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || `Server error: ${response.status}`);
+                }
+
+                if (result.success) {
+                    // Show results
+                    scoreDisplay.textContent = `Score: ${result.score.toFixed(1)}%`;
+                    feedbackText.textContent = result.feedback;
+                    resultSection.style.display = 'block';
+                    
+                    if (result.completed) {
+                        if (result.is_shortlisted) {
+                            setTimeout(() => {
+                                alert(`Congratulations! You have completed the interview.\nOverall Score: ${result.overall_score.toFixed(1)}%\nStatus: Shortlisted ✓`);
+                                window.location.href = result.redirect_url;
+                            }, 2000);
+                        } else {
+                            setTimeout(() => {
+                                alert(`Interview completed.\nOverall Score: ${result.overall_score.toFixed(1)}%`);
+                                window.location.href = result.redirect_url;
+                            }, 2000);
+                        }
+                    } else {
+                        nextQuestionBtn.style.display = 'block';
+                    }
+                    
+                    // Clear audio chunks for next question
+                    audioChunks = [];
+                } else {
+                    throw new Error(result.error || 'Submission failed');
+                }
+                
+            } catch (error) {
+                console.error('Submission error:', error);
+                showError('Submission failed: ' + error.message);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>📤</span> Submit Answer';
+            }
+            
+            document.body.classList.remove('loading');
+        });
+
+        function goToNextQuestion() {
+            window.location.href = '/candidate/{{ session.token }}/round2/';
+        }
+        
+        // Audio visualization functions
+        function setupAudioVisualization(stream) {
+            try {
+                if (audioContext) {
+                    audioContext.close();
+                }
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+            } catch (error) {
+                console.error('Audio visualization setup error:', error);
+            }
+        }
+        
+        function animateVisualization() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            const dataArray = new Uint8Array(analyser ? analyser.frequencyBinCount : 40);
+            
+            function update() {
+                if (analyser) {
+                    analyser.getByteFrequencyData(dataArray);
+                }
+                
+                bars.forEach((bar, i) => {
+                    const height = analyser ? 
+                        Math.max(5, (dataArray[i] / 255) * 80) : 
+                        Math.random() * 50 + 10;
+                    bar.style.height = `${height}px`;
+                });
+                
+                animationId = requestAnimationFrame(update);
+            }
+            
+            update();
+        }
+        
+        function stopVisualization() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            bars.forEach(bar => {
+                bar.style.height = '5px';
+            });
+        }
+
+        // Error handling functions
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            // Auto-hide error after 5 seconds
+            setTimeout(hideError, 5000);
+        }
+        
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+        
+        // CSRF token helper
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // ADDED: Enhanced window resize detection
+        window.addEventListener('resize', handleWindowResize);
+
+        // ADDED: Enhanced visibility change detection
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === 'hidden') {
+                tabSwitchCount++;
+                if (tabSwitchCount === 1 && !warningShown) {
+                    showWarning();
+                    warningShown = true;
+                } else if (tabSwitchCount >= 2) {
+                    terminateTest();
+                }
+            }
+        });
+
+        // ADDED: Enhanced blur detection for window/tab switching
+        window.addEventListener("blur", () => {
+            if (document.visibilityState === 'hidden') {
+                tabSwitchCount++;
+                if (tabSwitchCount === 1 && !warningShown) {
+                    showWarning();
+                    warningShown = true;
+                } else if (tabSwitchCount >= 2) {
+                    terminateTest();
+                }
+            }
+        });
+
+        // ADDED: Prevent context menu (right-click)
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            tabSwitchCount++;
+            if (tabSwitchCount >= 2) {
+                terminateTest();
+            }
+        });
+
+        // ADDED: Prevent keyboard shortcuts for developer tools
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && e.key === 'I') || 
+                (e.ctrlKey && e.shiftKey && e.key === 'J') || 
+                (e.ctrlKey && e.key === 'u')) {
+                e.preventDefault();
+                tabSwitchCount++;
+                if (tabSwitchCount >= 2) {
+                    terminateTest();
+                }
+            }
+        });
+
+        // Initialize proctoring when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeProctoring();
+            
+            // ADDED: Prevent back navigation
+            history.pushState(null, null, location.href);
+            window.onpopstate = function(event) {
+                history.go(1);
+                alert("You cannot go back during the test.");
+            };
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (isRecording) {
+                stopRecording();
+            }
+            if (audioContext) {
+                audioContext.close();
+            }
+            stopVisualization();
+            stopProctoring();
+        });
+    </script>
+</body>
+</html>

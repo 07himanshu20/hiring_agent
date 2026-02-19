@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Assessment Results - AI Hiring Agent{% endblock %}
+
+{% block extra_js %}
+<script>
+    // PREVENT BACK NAVIGATION - Added this script
+    history.pushState(null, null, location.href);
+    window.onpopstate = function(event) {
+        history.go(1);
+        alert("Test completed. You cannot go back to the test.");
+    };
+    
+    // Also prevent going back via back button
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace' && !e.target.matches('input, textarea')) {
+            e.preventDefault();
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-trophy"></i> Assessment Completed</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle fa-5x text-success mb-3"></i>
+                        <h3>Thank You for Completing the Assessment!</h3>
+                        <p class="lead">Your results have been submitted successfully.</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5>Round 1 Score</h5>
+                                    <div class="display-4 {% if evaluation.round1_score >= 60 %}text-success{% else %}text-warning{% endif %}">
+                                        {{ evaluation.round1_score|default:"0"|floatformat:1 }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5>Round 2 Score</h5>
+                                    <div class="display-4 {% if evaluation.round2_score >= 60 %}text-success{% else %}text-warning{% endif %}">
+                                        {{ evaluation.round2_score|default:"0"|floatformat:1 }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5>Overall Score</h5>
+                            <div class="display-4 {% if evaluation.is_shortlisted %}text-success{% else %}text-warning{% endif %}">
+                                {{ evaluation.overall_score|default:"0"|floatformat:1 }}%
+                            </div>
+                            <p class="mt-2">
+                                {% if evaluation.is_shortlisted %}
+                                    <span class="badge bg-success fs-6">Shortlisted ✓</span>
+                                {% else %}
+                                    <span class="badge bg-warning fs-6">Not Shortlisted</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Next Steps</h6>
+                        <p class="mb-0">
+                            {% if evaluation.is_shortlisted %}
+                                Congratulations! You have been shortlisted. The recruiter will contact you shortly.
+                            {% else %}
+                                Thank you for your participation. We appreciate your time and effort.
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <p class="text-muted">
+                            <small>This window can now be closed.</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

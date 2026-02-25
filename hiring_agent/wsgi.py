@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 WSGI config for hiring_agent project.
 
@@ -15,21 +14,4 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hiring_agent.settings')
 
 application = get_wsgi_application()
-=======
-"""
-WSGI config for hiring_agent project.
 
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/3.2/howto/deployment/wsgi/
-"""
-
-import os
-
-from django.core.wsgi import get_wsgi_application
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hiring_agent.settings')
-
-application = get_wsgi_application()
->>>>>>> 45714fc9bb77db1a37f345b9f3c925e550b03dcb

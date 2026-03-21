@@ -49,4 +49,4 @@ class RateLimitMiddleware:
         response = self.get_response(request)
         response['X-RateLimit-Limit'] = self.rate_limit_requests
         response['X-RateLimit-Remaining'] = self.rate_limit_requests - len(requests)
-        
+        return response

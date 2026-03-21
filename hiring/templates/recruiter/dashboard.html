@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 {% extends 'base.html' %}
 
 {% block title %}Recruiter Dashboard - AI Hiring Agent{% endblock %}
@@ -25,20 +24,20 @@
                         <p class="card-text">
                             <strong>Experience:</strong> {{ request.years_experience }} years<br>
                             <strong>Difficulty:</strong> {{ request.difficulty_level|title }}<br>
-                            <strong>Questions:</strong> {{ request.number_of_questions_round1 }} + {{ request.number_of_questions_round2 }}<br>
+                            <strong>Questions:</strong> {{ request.number_of_questions_round1 }} + {{
+                            request.number_of_questions_round2 }}<br>
                             <strong>Created:</strong> {{ request.created_at|date:"M d, Y" }}
                         </p>
-                        
+
                         <div class="mb-3">
                             <label class="form-label"><strong>Candidate Link:</strong></label>
                             {% with session=request.candidatesession_set.first %}
                             {% if session %}
                             <div class="input-group">
-                                <input type="text" class="form-control" 
-                                    value="{{ session.token }}" 
-                                    readonly id="token{{ request.id }}">
-                                <button class="btn btn-outline-secondary" type="button" 
-                                        onclick="copyToken('token{{ request.id }}')">
+                                <input type="text" class="form-control" value="{{ session.token }}" readonly
+                                    id="token{{ request.id }}">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="copyToken('token{{ request.id }}')">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </div>
@@ -47,7 +46,9 @@
                             </small>
                             {% else %}
                             <div class="alert alert-warning">
-                                <small>No candidate sessions yet. <a href="{% url 'admin:hiring_candidatesession_add' %}">Create one in admin</a></small>
+                                <small>No candidate sessions yet. <a
+                                        href="{% url 'admin:hiring_candidatesession_add' %}">Create one in
+                                        admin</a></small>
                             </div>
                             {% endif %}
                             {% endwith %}
@@ -58,8 +59,8 @@
                             <a href="{% url 'view_results' request.id %}" class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-chart-bar"></i> View Results
                             </a>
-                            <a href="{% url 'admin:hiring_hiringrequest_change' request.id %}" 
-                               class="btn btn-outline-secondary btn-sm" target="_blank">
+                            <a href="{% url 'admin:hiring_hiringrequest_change' request.id %}"
+                                class="btn btn-outline-secondary btn-sm" target="_blank">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
                         </div>
@@ -84,125 +85,22 @@
 
 {% block extra_js %}
 <script>
-function copyToken(elementId) {
-    const element = document.getElementById(elementId);
-    element.select();
-    element.setSelectionRange(0, 99999); // For mobile devices
-    navigator.clipboard.writeText(element.value).then(() => {
-        // Show temporary feedback
-        const button = element.nextElementSibling;
-        const originalHtml = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-check"></i>';
-        button.classList.add('btn-success');
-        setTimeout(() => {
-            button.innerHTML = originalHtml;
-            button.classList.remove('btn-success');
-        }, 2000);
-    });
-}
+    function copyToken(elementId) {
+        const element = document.getElementById(elementId);
+        element.select();
+        element.setSelectionRange(0, 99999); // For mobile devices
+        navigator.clipboard.writeText(element.value).then(() => {
+            // Show temporary feedback
+            const button = element.nextElementSibling;
+            const originalHtml = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.classList.add('btn-success');
+            setTimeout(() => {
+                button.innerHTML = originalHtml;
+                button.classList.remove('btn-success');
+            }, 2000);
+        });
+    }
 </script>
-=======
-{% extends 'base.html' %}
 
-{% block title %}Recruiter Dashboard - AI Hiring Agent{% endblock %}
-
-{% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Recruiter Dashboard</h2>
-            <a href="{% url 'create_hiring_request' %}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Create New Hiring Role
-            </a>
-        </div>
-
-        {% if hiring_requests %}
-        <div class="row">
-            {% for request in hiring_requests %}
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="mb-0">{{ request.work_profile }}</h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="card-text">
-                            <strong>Experience:</strong> {{ request.years_experience }} years<br>
-                            <strong>Difficulty:</strong> {{ request.difficulty_level|title }}<br>
-                            <strong>Questions:</strong> {{ request.number_of_questions_round1 }} + {{ request.number_of_questions_round2 }}<br>
-                            <strong>Created:</strong> {{ request.created_at|date:"M d, Y" }}
-                        </p>
-                        
-                        <div class="mb-3">
-                            <label class="form-label"><strong>Candidate Link:</strong></label>
-                            {% with session=request.candidatesession_set.first %}
-                            {% if session %}
-                            <div class="input-group">
-                                <input type="text" class="form-control" 
-                                    value="{{ session.token }}" 
-                                    readonly id="token{{ request.id }}">
-                                <button class="btn btn-outline-secondary" type="button" 
-                                        onclick="copyToken('token{{ request.id }}')">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
-                            <small class="form-text text-muted">
-                                Share this URL: http://127.0.0.1:8000/candidate/{{ session.token }}/round1/
-                            </small>
-                            {% else %}
-                            <div class="alert alert-warning">
-                                <small>No candidate sessions yet. <a href="{% url 'admin:hiring_candidatesession_add' %}">Create one in admin</a></small>
-                            </div>
-                            {% endif %}
-                            {% endwith %}
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <div class="d-grid gap-2">
-                            <a href="{% url 'view_results' request.id %}" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-chart-bar"></i> View Results
-                            </a>
-                            <a href="{% url 'admin:hiring_hiringrequest_change' request.id %}" 
-                               class="btn btn-outline-secondary btn-sm" target="_blank">
-                                <i class="fas fa-edit"></i> Edit
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-briefcase fa-4x text-muted mb-3"></i>
-            <h3>No Hiring Requests Yet</h3>
-            <p class="text-muted">Create your first hiring role to get started with candidate assessments.</p>
-            <a href="{% url 'create_hiring_request' %}" class="btn btn-primary btn-lg">
-                <i class="fas fa-plus"></i> Create Your First Hiring Role
-            </a>
-        </div>
-        {% endif %}
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-function copyToken(elementId) {
-    const element = document.getElementById(elementId);
-    element.select();
-    element.setSelectionRange(0, 99999); // For mobile devices
-    navigator.clipboard.writeText(element.value).then(() => {
-        // Show temporary feedback
-        const button = element.nextElementSibling;
-        const originalHtml = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-check"></i>';
-        button.classList.add('btn-success');
-        setTimeout(() => {
-            button.innerHTML = originalHtml;
-            button.classList.remove('btn-success');
-        }, 2000);
-    });
-}
-</script>
->>>>>>> 45714fc9bb77db1a37f345b9f3c925e550b03dcb
 {% endblock %}

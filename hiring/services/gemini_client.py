@@ -19,7 +19,7 @@ class GeminiClient:
     def __init__(self):
         try:
             # HARDCODED API KEY - DIRECT CONFIGURATION  
-            api_key = "AIzaSyCBfbwr7_VVSnJcs1zsc1CfL_SgLNPNjS4"  # ✅ FIX: Correct working key
+            api_key = ""  # ✅ FIX: Correct working key
             
             if api_key:
         # This shows you if the key is being read correctly without revealing the whole thing
@@ -49,7 +49,7 @@ class GeminiClient:
             }
             
             self.model = genai.GenerativeModel(
-                'gemini-pro',
+                'gemini-2.5-flash',
                 generation_config=generation_config
             )
             
@@ -70,17 +70,7 @@ class GeminiClient:
         """
         Generate questions using DIRECT HTTP API - PROFILE-SPECIFIC VERSION
         """
-        print(f"=== USING DIRECT HTTP API FOR GEMINI ===")
-        print(f"Profile: {work_profile}, Experience: {years_experience}, Difficulty: {difficulty_level}, Questions: {number_of_questions_round1}")
-        
-        api_key = "AIzaSyCBfbwr7_VVSnJcs1zsc1CfL_SgLNPNjS4"
-        
-        
-        if not api_key:
-            print("❌ No API key found")
-            return self.get_fallback_questions(number_of_questions_round1)
-        
-        # DYNAMIC PROMPT BASED ON WORK PROFILE
+        api_key = ""  # ✅ FIX: Correct working key
         if "aws" in work_profile.lower() or "cloud" in work_profile.lower():
             profile_focus = """
             FOCUS EXCLUSIVELY ON AWS SERVICES AND CONCEPTS:
@@ -199,6 +189,7 @@ class GeminiClient:
             
             if response.status_code == 200:
                 result = response.json()
+                total_tokens = self._extract_tokens(result)
                 response_text = result['candidates'][0]['content']['parts'][0]['text']
                 
                 print(f"=== RAW RESPONSE RECEIVED ===")
@@ -244,7 +235,10 @@ class GeminiClient:
                         questions.extend(additional_questions)
                         print(f"✅ Combined {len(questions)} total {work_profile}-specific questions")
                     
-                    return questions
+                    return {
+                        "data": questions,
+                        "tokens_used": total_tokens
+                        }
                     
                 except json_lib.JSONDecodeError as e:
                     print(f"❌ JSON parsing error after cleaning: {e}")
@@ -262,7 +256,7 @@ class GeminiClient:
     def _get_additional_questions(self, work_profile, years_experience, difficulty_level, count):
         """Get additional questions if first request didn't return enough"""
         try:
-            api_key = "AIzaSyCBfbwr7_VVSnJcs1zsc1CfL_SgLNPNjS4"  # ✅ FIX: Correct working key
+            api_key = ""  # ✅ FIX: Correct working key
             
 
             prompt = f"""
@@ -292,6 +286,7 @@ class GeminiClient:
             
             if response.status_code == 200:
                 result = response.json()
+                total_tokens = self._extract_tokens(result)
                 response_text = result['candidates'][0]['content']['parts'][0]['text']
                 
                 cleaned_text = self._clean_and_validate_json(response_text)
@@ -859,6 +854,7 @@ class GeminiClient:
     def evaluate_answer(self, question_data: Dict[str, Any] = None, candidate_answer: str = None) -> Dict[str, Any]:
         """
         Evaluate answers using ONLY Gemini AI - no fallback methods
+        Returns: {"data": evaluation_dict, "tokens_used": int}
         """
         logger.info(f"=== GEMINI AI EVALUATION STARTED ===")
         logger.info(f"Question type: {question_data.get('question_type')}")
@@ -867,11 +863,14 @@ class GeminiClient:
         
         if question_data is None or candidate_answer is None:
             return {
-                "score": 0.0,
-                "confidence": 0.5,
-                "explanation": "Evaluation error: Missing question data or answer.",
-                "is_correct": False,
-                "correct_answer": ""
+                "data": {
+                    "score": 0.0,
+                    "confidence": 0.5,
+                    "explanation": "Evaluation error: Missing question data or answer.",
+                    "is_correct": False,
+                    "correct_answer": ""
+                },
+                "tokens_used": 0
             }
         
         question_type = question_data.get('question_type', 'short')
@@ -881,7 +880,7 @@ class GeminiClient:
             # First try precise evaluation
             precise_result = self._evaluate_mcq_answer(question_data, candidate_answer)
             if precise_result.get('confidence', 0) > 0.8:
-                return precise_result
+                return {"data": precise_result, "tokens_used": 0}
             else:
                 # If precise evaluation is uncertain, use AI
                 return self._evaluate_mcq_with_gemini(question_data, candidate_answer)
@@ -1076,7 +1075,7 @@ class GeminiClient:
             """
             
             # Use direct HTTP API for evaluation
-            api_key = "AIzaSyC4lfyxD20gaR5Pnji2aWUsw9ttM2S8eog"
+            api_key = ""
 
             import requests
             import json as json_lib
@@ -1095,6 +1094,7 @@ class GeminiClient:
             
             if response.status_code == 200:
                 result = response.json()
+                total_tokens = self._extract_tokens(result)
                 response_text = result['candidates'][0]['content']['parts'][0]['text']
                 
                 # Clean and parse JSON response
@@ -1109,14 +1109,14 @@ class GeminiClient:
                     evaluation['correct_answer'] = correct_answer_text
                     
                     logger.info(f"Gemini MCQ evaluation - Score: {evaluation['score']}, Correct: {evaluation['is_correct']}")
-                    return evaluation
+                    return {"data": evaluation, "tokens_used": total_tokens}
             
             # Fallback to precise evaluation
-            return self._evaluate_mcq_answer(question_data, candidate_answer)
+            return {"data": self._evaluate_mcq_answer(question_data, candidate_answer), "tokens_used": 0}
             
         except Exception as e:
             logger.error(f"Error in Gemini MCQ evaluation: {e}")
-            return self._evaluate_mcq_answer(question_data, candidate_answer)
+            return {"data": self._evaluate_mcq_answer(question_data, candidate_answer), "tokens_used": 0}
 
     def _evaluate_short_answer_with_gemini(self, question_data: Dict, candidate_answer: str) -> Dict[str, Any]:
         """
@@ -1151,7 +1151,7 @@ class GeminiClient:
             """
             
             # Use direct HTTP API for Gemini
-            api_key = "AIzaSyCBfbwr7_VVSnJcs1zsc1CfL_SgLNPNjS4"  # ✅ FIX: Correct working key
+            api_key = ""  # ✅ FIX: Correct working key
 
             import requests
             import json as json_lib
@@ -1170,6 +1170,7 @@ class GeminiClient:
             
             if response.status_code == 200:
                 result = response.json()
+                total_tokens = self._extract_tokens(result)
                 response_text = result['candidates'][0]['content']['parts'][0]['text']
                 
                 # Clean and parse JSON response
@@ -1184,27 +1185,32 @@ class GeminiClient:
                     evaluation['correct_answer'] = question_data.get('model_answer', '')
                     
                     logger.info(f"Gemini short answer evaluation - Score: {evaluation['score']}, Correct: {evaluation['is_correct']}")
-                    return evaluation
+                    return {"data": evaluation, "tokens_used": total_tokens}
             
             # If we reach here, Gemini API failed - return minimal evaluation
             logger.error("Gemini API failed for short answer evaluation")
             return {
-                "score": 0.5,
-                "is_correct": False,
-                "explanation": "Evaluation service temporarily unavailable.",
-                "confidence": 0.5,
-                "correct_answer": question_data.get('model_answer', '')
+                "data": {
+                    "score": 0.5,
+                    "is_correct": False,
+                    "explanation": "Evaluation service temporarily unavailable.",
+                    "confidence": 0.5,
+                    "correct_answer": question_data.get('model_answer', '')
+                },
+                "tokens_used": 0
             }
             
         except Exception as e:
             logger.error(f"Error in Gemini short answer evaluation: {e}")
-            # Return minimal evaluation instead of using fallback
             return {
-                "score": 0.5,
-                "is_correct": False,
-                "explanation": "Evaluation service error.",
-                "confidence": 0.3,
-                "correct_answer": question_data.get('model_answer', '')
+                "data": {
+                    "score": 0.5,
+                    "is_correct": False,
+                    "explanation": "Evaluation service error.",
+                    "confidence": 0.3,
+                    "correct_answer": question_data.get('model_answer', '')
+                },
+                "tokens_used": 0
             }
 
     
@@ -1263,7 +1269,7 @@ class GeminiClient:
             """
             
             # Use direct HTTP API for Gemini
-            api_key = "AIzaSyC4lfyxD20gaR5Pnji2aWUsw9ttM2S8eog"
+            api_key = ""
             import requests
             import json as json_lib
             
@@ -1282,6 +1288,7 @@ class GeminiClient:
             
             if response.status_code == 200:
                 result = response.json()
+                total_tokens = self._extract_tokens(result)
                 response_text = result['candidates'][0]['content']['parts'][0]['text']
                 
                 # Clean and parse the JSON response
@@ -1302,29 +1309,34 @@ class GeminiClient:
                     evaluation['is_correct'] = evaluation.get('is_correct', score >= 0.6)
                     
                     logger.info(f"Voice evaluation completed. Score: {evaluation['score']}")
-                    return evaluation
+                    return {"data": evaluation, "tokens_used": total_tokens}
             
             # If API call fails, return error response
             logger.error("Gemini API failed for voice evaluation")
             return {
-                "score": 0.5,
-                "explanation": "Evaluation service temporarily unavailable.",
-                "confidence": 0.5,
-                "keywords_matched": [],
-                "improvement_suggestions": ["Try again later"],
-                "is_correct": False
+                "data": {
+                    "score": 0.5,
+                    "explanation": "Evaluation service temporarily unavailable.",
+                    "confidence": 0.5,
+                    "keywords_matched": [],
+                    "improvement_suggestions": ["Try again later"],
+                    "is_correct": False
+                },
+                "tokens_used": 0
             }
                 
         except Exception as e:
             logger.error(f"Error in voice answer evaluation: {e}")
-            # Return error response instead of fallback
             return {
-                "score": 0.5,
-                "explanation": "Evaluation service error.",
-                "confidence": 0.3,
-                "keywords_matched": [],
-                "improvement_suggestions": ["Technical issue occurred during evaluation"],
-                "is_correct": False
+                "data": {
+                    "score": 0.5,
+                    "explanation": "Evaluation service error.",
+                    "confidence": 0.3,
+                    "keywords_matched": [],
+                    "improvement_suggestions": ["Technical issue occurred during evaluation"],
+                    "is_correct": False
+                },
+                "tokens_used": 0
             }
     
     def _build_enhanced_voice_evaluation_prompt(self, question_text: str, model_answer: str, candidate_answer: str,
@@ -1725,7 +1737,7 @@ class GeminiClient:
             """
             
             # Use direct HTTP API for Gemini
-            api_key = "AIzaSyC4lfyxD20gaR5Pnji2aWUsw9ttM2S8eog"
+            api_key = ""
             import requests
             import json as json_lib
             
@@ -1743,12 +1755,16 @@ class GeminiClient:
             
             if response.status_code == 200:
                 result = response.json()
+                total_tokens = self._extract_tokens(result)
                 response_text = result['candidates'][0]['content']['parts'][0]['text']
                 
                 cleaned_text = self._clean_and_validate_json(response_text)
                 if cleaned_text:
                     questions = json_lib.loads(cleaned_text)
-                    return questions[:n]
+                    return {
+                        "data": questions[:n], 
+                        "tokens_used": total_tokens
+                    }
             
             # If API fails, return empty list
             logger.error("Gemini API failed for voice question generation")
@@ -1774,4 +1790,11 @@ class GeminiClient:
                 "model_answer": f"A comprehensive technical answer should demonstrate {difficulty}-level expertise in {profile} responsibilities, covering architecture, implementation, and best practices specific to this scenario."
             })
         
-        return questions
+        return {
+            "data": questions,
+            "tokens_used": total_tokens
+        }
+
+    def _extract_tokens(self, result):
+        usage_data = result.get("usageMetadata", {})
+        return usage_data.get("totalTokenCount", 0)

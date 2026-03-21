@@ -70,6 +70,9 @@ class CandidateSession(models.Model):
     screen_sharing_blocked = models.BooleanField(default=False)
     screen_sharing_detected = models.BooleanField(default=False)
 
+    def get_total_tokens_used(self):
+        return sum(usage.tokens_used for usage in self.token_usages.all())
+
     def get_next_question(self):
         questions = self.hiring_request.round2_questions.all().order_by('question_order')
         current_index = self.current_question_index or 0
@@ -265,3 +268,23 @@ class ProctoringViolation(models.Model):
     def __str__(self):
         return f"{self.candidate_session.token} - {self.violation_type} ({self.severity})"
 
+class TokenUsage(models.Model):
+    API_TYPES = [
+        ('round1_gen', 'Round 1 Generation'),
+        ('round1_eval', 'Round 1 Evaluation'),
+        ('round2_gen', 'Round 2 Generation'),
+        ('round2_eval', 'Round 2 Evaluation'),
+    ]
+
+    candidate_session = models.ForeignKey(
+        CandidateSession,
+        on_delete=models.CASCADE,
+        related_name='token_usages'
+    )
+
+    api_type = models.CharField(max_length=20, choices=API_TYPES)
+    tokens_used = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.candidate_session.token} - {self.api_type} - {self.tokens_used}"

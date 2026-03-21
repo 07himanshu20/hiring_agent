@@ -98,15 +98,15 @@ def create_hiring_request(request):
             hiring_request.recruiter = request.user
             hiring_request.save()
             
-            # Generate questions for both rounds
-            generate_round1_questions_for_hiring(hiring_request)
-            generate_round2_questions(hiring_request)
-
-            # Create a candidate session automatically
+            # Create a candidate session automatically FIRST
             candidate_session = CandidateSession.objects.create(
                 hiring_request=hiring_request
             )
             logger.info(f"Created candidate session with token: {candidate_session.token}")
+
+            # THEN Generate questions for both rounds
+            generate_round1_questions_for_hiring(hiring_request)
+            generate_round2_questions(hiring_request)
             
             return redirect('recruiter_dashboard')
     else:
@@ -263,6 +263,21 @@ def generate_round1_questions_for_hiring(hiring_request):
             difficulty_level=hiring_request.difficulty_level,
             number_of_questions_round1=hiring_request.number_of_questions_round1
         )
+        # ✅ Extract data + tokens from the returned dict
+        tokens_used = questions_data.get("tokens_used", 0) if isinstance(questions_data, dict) else 0
+        questions_data = questions_data.get("data", questions_data) if isinstance(questions_data, dict) else questions_data
+
+        # ✅ Save token usage (only if session exists)
+        session = CandidateSession.objects.filter(
+            hiring_request=hiring_request
+        ).first()
+
+        if session:
+            TokenUsage.objects.create(
+                candidate_session=session,
+                api_type="round1_gen",
+                tokens_used=tokens_used
+            )
         
         logger.info(f"=== SAVING {len(questions_data)} QUESTIONS TO DATABASE ===")
         
@@ -373,6 +388,21 @@ def generate_round2_questions(hiring_request):
             difficulty=hiring_request.difficulty_level,
             n=hiring_request.number_of_questions_round2
         )
+        # ✅ Extract data + tokens from the returned dict
+        tokens_used = questions_data.get("tokens_used", 0) if isinstance(questions_data, dict) else 0
+        questions_data = questions_data.get("data", questions_data) if isinstance(questions_data, dict) else questions_data
+
+        # ✅ Save token usage
+        session = CandidateSession.objects.filter(
+            hiring_request=hiring_request
+        ).first()
+
+        if session:
+            TokenUsage.objects.create(
+                candidate_session=session,
+                api_type="round2_gen",
+                tokens_used=tokens_used
+            )
         
         for i, q_data in enumerate(questions_data):
             Round2Question.objects.create(
@@ -527,6 +557,7 @@ def submit_round1(request, token):
             # Evaluate answers
             total_score = 0
             evaluation_results = []
+            total_eval_tokens = 0
             
             for question in questions:
                 question_id = str(question.id)
@@ -569,10 +600,13 @@ def submit_round1(request, token):
                 }
                 
                 # Use Gemini to evaluate the answer
-                evaluation = gemini_client.evaluate_answer(
+                evaluation_response = gemini_client.evaluate_answer(
                     question_data=question_data,
                     candidate_answer=user_answer
                 )
+
+                evaluation = evaluation_response["data"]
+                total_eval_tokens += evaluation_response.get("tokens_used", 0)
                 
                 question_score = evaluation.get('score', 0.0)
                 is_correct = evaluation.get('is_correct', False)
@@ -606,6 +640,16 @@ def submit_round1(request, token):
                 )
                 
                 time.sleep(0.5)
+
+            # ✅ Accumulate all round 1 evaluation tokens into one entry
+            if total_eval_tokens > 0:
+                tu, _ = TokenUsage.objects.get_or_create(
+                    candidate_session=session,
+                    api_type="round1_eval",
+                    defaults={'tokens_used': 0}
+                )
+                tu.tokens_used += total_eval_tokens
+                tu.save()
             
             # Calculate percentage
             percentage = (total_score / total_questions) * 100 if total_questions > 0 else 0
@@ -792,7 +836,7 @@ def submit_audio_answer(request, token):
             logger.info(f"Transcribed text: {transcribed_text[:100]}...")
             
             # Step 2: Evaluate answer using Gemini AI
-            evaluation = gemini_client.evaluate_voice_answer(
+            evaluation_response = gemini_client.evaluate_voice_answer(
                 question_text=question.question_text,
                 model_answer=question.model_answer,
                 candidate_answer=transcribed_text,
@@ -800,6 +844,19 @@ def submit_audio_answer(request, token):
                 work_profile=session.hiring_request.work_profile,
                 years_experience=session.hiring_request.years_experience
             )
+
+            # ✅ Unpack data and token usage
+            evaluation = evaluation_response.get("data", evaluation_response)
+            tokens_used = evaluation_response.get("tokens_used", 0)
+
+            if tokens_used:
+                tu, _ = TokenUsage.objects.get_or_create(
+                    candidate_session=session,
+                    api_type="round2_eval",
+                    defaults={'tokens_used': 0}
+                )
+                tu.tokens_used += tokens_used
+                tu.save()
             
             logger.info(f"Evaluation completed: score={evaluation.get('score', 0)}")
             

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import HiringRequest, CandidateSession, Round1Question, Round1Answer, Round2Question, Round2Answer, EvaluationResult
+from .models import HiringRequest, CandidateSession, Round1Question, Round1Answer, Round2Question, Round2Answer, EvaluationResult ,TokenUsage
 
 @admin.register(HiringRequest)
 class HiringRequestAdmin(admin.ModelAdmin):
@@ -37,4 +37,10 @@ class Round2AnswerAdmin(admin.ModelAdmin):
 class EvaluationResultAdmin(admin.ModelAdmin):
     list_display = ['candidate_session', 'round1_score', 'round2_score', 'overall_score', 'is_shortlisted', 'created_at']
     list_filter = ['is_shortlisted', 'created_at']
+    search_fields = ['candidate_session__token']
+
+@admin.register(TokenUsage)
+class TokenUsageAdmin(admin.ModelAdmin):
+    list_display = ['candidate_session', 'api_type', 'tokens_used', 'created_at']
+    list_filter = ['api_type', 'created_at']
     search_fields = ['candidate_session__token']
